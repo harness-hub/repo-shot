@@ -1,0 +1,14 @@
+scenario:
+  name: Install Dependencies
+  description: Installing npm packages for a Node.js project
+  
+  steps:
+    - type: shell
+      command: npm install
+      caption: "Installing dependencies..."
+      output_capture: true
+    
+    - type: shell
+      command: npm test
+      caption: "Running tests"
+      output_capture: true

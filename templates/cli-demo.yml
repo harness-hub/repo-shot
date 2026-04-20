@@ -9,20 +9,17 @@ scenario:
     conclusion: "These are fundamental CLI operations"
 
   steps:
-    - type: echo
+    - type: shell
       command: echo "Welcome to repo-shot CLI"
       caption: "Echo a welcome message"
-      output_capture: true
 
     - type: shell
       command: echo "Current directory:" && pwd
       caption: "Display current working directory"
-      output_capture: true
 
-    - type: ls
+    - type: shell
       command: ls -la
       caption: "List files in detailed format"
-      output_capture: true
       
     - type: sequence
       caption: "Create and verify a file"
@@ -30,7 +27,6 @@ scenario:
         - echo "Hello from repo-shot" > demo.txt
         - cat demo.txt
         - rm demo.txt
-      output_capture: true
 
   metadata:
     tags:

@@ -1,60 +1,57 @@
 scenario:
-  name: Web UI Flow - User Interaction Demo
-  description: Demonstrates browser navigation, interaction, and verification
+  name: Web UI Flow - Interactive Demo
+  description: Complete browser workflow demonstrating navigation, element interaction, and dynamic content
   version: 1.0
 
   captions:
-    intro: "Navigating a web application"
-    interaction: "User interactions with the interface"
-    verification: "Verifying content on the page"
-    conclusion: "Demonstration complete"
+    intro: "Web UI Interaction Demo"
+    navigation: "Loading interactive demo site"
+    interaction: "Testing element interactions"
+    dropdown: "Working with dropdown elements"
+    selection: "Making form selections"
+    conclusion: "Demo complete!"
 
   steps:
     - type: navigate
-      url: https://example.com
-      caption: "Navigate to the homepage"
-      wait_for_load: true
+      url: https://the-internet.herokuapp.com/
+      caption: "Navigate to demo site"
       timeout: 30000
+      delay: 1000
 
     - type: screenshot
-      filename: homepage.png
-      caption: "Capture the homepage"
-      full_page: true
+      caption: "Demo site homepage loaded"
+      delay: 500
 
     - type: click
-      selector: "a[href='/login']"
-      caption: "Click the login link"
-      wait_for_navigation: false
+      selector: "a[href='/dropdown']"
+      caption: "Click dropdown example link"
+      delay: 800
 
     - type: screenshot
-      filename: login-page.png
-      caption: "Screenshot of login page"
-      full_page: false
-      
-    - type: assert
-      assertion_type: text_visible
-      selector: "h1"
-      expected_text: "Login to Your Account"
-      caption: "Verify login page title is visible"
-      
-    - type: click
-      selector: "input[name='email']"
-      caption: "Focus on email input field"
-      wait_for_navigation: false
+      caption: "Dropdown page loaded"
+      delay: 1000
 
-    - type: assert
-      assertion_type: element_visible
-      selector: "button[type='submit']"
-      caption: "Verify submit button is visible"
+    - type: click
+      selector: "#dropdown"
+      caption: "Click dropdown menu"
+      delay: 800
+
+    - type: wait
+      delay: 500
+      caption: "Dropdown opened"
+
+    - type: screenshot
+      caption: "Dropdown options visible"
+      delay: 1000
 
   metadata:
     tags:
       - web
       - ui
       - browser
-      - integration
+      - dropdown
     difficulty: intermediate
-    estimated_time: 60s
+    estimated_time: 45s
     browser_config:
       headless: true
       viewport:

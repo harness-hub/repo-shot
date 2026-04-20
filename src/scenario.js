@@ -27,6 +27,11 @@ export function loadScenario(filePath) {
     throw new Error(`Failed to parse scenario file: ${err.message}`);
   }
 
+  // Unwrap if data has a 'scenario' wrapper key
+  if (data && data.scenario && typeof data.scenario === 'object') {
+    data = data.scenario;
+  }
+
   validateScenario(data);
   return data;
 }
@@ -38,10 +43,6 @@ export function validateScenario(data) {
 
   if (!data.name || typeof data.name !== 'string') {
     throw new Error('Scenario must have a "name" field (string)');
-  }
-
-  if (!data.output || typeof data.output !== 'string') {
-    throw new Error('Scenario must have an "output" field (string)');
   }
 
   if (!Array.isArray(data.steps)) {

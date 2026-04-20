@@ -1,0 +1,79 @@
+scenario:
+  name: Form Submission Workflow
+  description: Complete form filling and login workflow with interactive elements
+  version: 1.0
+
+  captions:
+    intro: "Demonstrating login form workflow"
+    navigation: "Opening the login form"
+    input: "Filling in credentials"
+    validation: "Form validation in action"
+    submission: "Submitting the form"
+
+  steps:
+    - type: navigate
+      url: https://the-internet.herokuapp.com/login
+      caption: "Navigate to login form"
+      timeout: 30000
+      delay: 1000
+
+    - type: screenshot
+      caption: "Login form displayed"
+      delay: 800
+
+    - type: click
+      selector: "#username"
+      caption: "Focus on username field"
+      delay: 300
+
+    - type: fill
+      selector: "#username"
+      text: "tomsmith"
+      caption: "Enter username (tomsmith)"
+      delay: 500
+
+    - type: click
+      selector: "#password"
+      caption: "Move to password field"
+      delay: 300
+
+    - type: fill
+      selector: "#password"
+      text: "SuperSecretPassword!"
+      caption: "Enter password"
+      delay: 500
+
+    - type: wait
+      delay: 800
+      caption: "Review form before submission"
+
+    - type: screenshot
+      caption: "Form fully completed"
+      delay: 500
+
+    - type: click
+      selector: "button.radius"
+      caption: "Click login button"
+      delay: 800
+
+    - type: wait
+      delay: 2000
+      caption: "Processing login..."
+
+    - type: screenshot
+      caption: "Login form submitted"
+      delay: 1000
+
+  metadata:
+    tags:
+      - web
+      - forms
+      - browser
+      - user-interaction
+    difficulty: intermediate
+    estimated_time: 60s
+    browser_config:
+      headless: true
+      viewport:
+        width: 1280
+        height: 720

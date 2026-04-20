@@ -1,0 +1,71 @@
+scenario:
+  name: API Testing with cURL
+  description: Demonstrates API testing workflow with real JSONPlaceholder API
+  version: 1.0
+
+  captions:
+    intro: "API Testing Workflow"
+    setup: "Setting up test environment"
+    request: "Making API requests"
+    testing: "Testing API responses"
+    validation: "Validating JSON data"
+    cleanup: "Test suite completed"
+
+  steps:
+    - type: shell
+      command: echo "🚀 Starting API Test Suite"
+      caption: "Initialize test run"
+      delay: 500
+
+    - type: shell
+      command: curl -s https://jsonplaceholder.typicode.com/users | jq '.[0].name'
+      caption: "Fetch first user from API"
+      delay: 1500
+
+    - type: shell
+      command: curl -s https://jsonplaceholder.typicode.com/posts/1 | jq '.title'
+      caption: "Retrieve specific post details"
+      delay: 1500
+
+    - type: shell
+      command: curl -s https://jsonplaceholder.typicode.com/posts | jq 'length'
+      caption: "Count total posts in database"
+      delay: 1500
+
+    - type: shell
+      command: curl -s https://jsonplaceholder.typicode.com/posts/1/comments | jq '.[0].name'
+      caption: "Fetch comments for post"
+      delay: 1500
+
+    - type: shell
+      command: curl -s https://jsonplaceholder.typicode.com/users/1 | jq '.email'
+      caption: "Get user profile information"
+      delay: 1500
+
+    - type: shell
+      command: curl -s https://jsonplaceholder.typicode.com/todos | jq 'length'
+      caption: "Count total todos"
+      delay: 1500
+
+    - type: shell
+      command: curl -s https://jsonplaceholder.typicode.com/albums/1 | jq '.title'
+      caption: "Retrieve album information"
+      delay: 1500
+
+    - type: shell
+      command: echo "✅ API Test Suite Completed Successfully"
+      caption: "All tests passed"
+      delay: 1000
+
+  metadata:
+    tags:
+      - api
+      - testing
+      - curl
+      - terminal
+      - backend
+    difficulty: advanced
+    estimated_time: 75s
+    environment:
+      API_BASE: "https://jsonplaceholder.typicode.com"
+      API_TYPE: "REST"

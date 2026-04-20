@@ -5,10 +5,11 @@ import fs from 'fs/promises';
 import path from 'path';
 
 /**
- * Records terminal session by simulating shell commands with ANSI output
+ * Records terminal session by running shell commands and capturing output
+ * Uses execa for command execution with simpler compatibility
  * @param {Array<{cmd: string, delay?: number}>} steps - Commands to simulate
  * @param {string} outPath - Output file path for recording data
- * @returns {Promise<{duration: number, frames: Array, output: string}>}
+ * @returns {Promise<{duration: number, frames: Array, output: string, path: string}>}
  */
 export async function recordTerminal(steps, outPath) {
   if (!Array.isArray(steps) || steps.length === 0) {
@@ -24,87 +25,80 @@ export async function recordTerminal(steps, outPath) {
   const startTime = Date.now();
 
   try {
-    // Create a pseudo-terminal session
-    const term = spawn('bash', [], {
-      name: 'xterm-256color',
-      cols: 120,
-      rows: 30,
-    });
+    // Create output directory
+    await fs.mkdir(path.dirname(outPath), { recursive: true });
+    
+    // Execute each command and capture output
+    for (const step of steps) {
+      const delay = step.delay || 500;
+      
+      // Wait before executing command
+      await new Promise((res) => setTimeout(res, delay));
+      
+      const cmdStartTime = Date.now();
+      
+      try {
+        // Execute command using execa
+        const result = await execa('bash', ['-c', step.cmd]);
 
-    let buffer = '';
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        term.kill();
-        reject(new Error('Terminal recording timeout'));
-      }, 30000);
-
-      term.onData((data) => {
-        buffer += data;
-        output += data;
         const timestamp = Date.now() - startTime;
+        const cmdOutput = result.stdout || result.stderr || '';
+        
+        output += `$ ${step.cmd}\n${cmdOutput}\n`;
+        
         frames.push({
           timestamp,
-          data: data.toString(),
-          type: 'output',
+          command: step.cmd,
+          output: cmdOutput,
+          duration: Date.now() - cmdStartTime,
+          type: 'command',
         });
-      });
+      } catch (cmdErr) {
+        // Still capture output even if command fails
+        const timestamp = Date.now() - startTime;
+        const cmdOutput = cmdErr.stdout || cmdErr.stderr || cmdErr.message;
+        
+        output += `$ ${step.cmd}\n${cmdOutput}\n`;
+        
+        frames.push({
+          timestamp,
+          command: step.cmd,
+          output: cmdOutput,
+          error: true,
+          duration: Date.now() - cmdStartTime,
+          type: 'command',
+        });
+      }
+    }
 
-      term.onExit(() => {
-        clearTimeout(timeout);
-        totalDuration = Date.now() - startTime;
+    totalDuration = Date.now() - startTime;
 
-        // Write recording data
-        fs.writeFile(
-          outPath,
-          JSON.stringify({ frames, duration: totalDuration, output }, null, 2)
-        )
-          .then(() => {
-            resolve({
-              duration: totalDuration,
-              frames,
-              output,
-            });
-          })
-          .catch(reject);
-      });
+    // Write recording data
+    await fs.writeFile(
+      outPath,
+      JSON.stringify({ frames, duration: totalDuration, output }, null, 2)
+    );
 
-      // Execute commands with delays
-      (async () => {
-        try {
-          for (const step of steps) {
-            const delay = step.delay || 500;
-            await new Promise((res) => setTimeout(res, delay));
-
-            const cmd = step.cmd + '\n';
-            term.write(cmd);
-
-            // Wait for command to complete (simple heuristic)
-            await new Promise((res) => setTimeout(res, 1000));
-          }
-
-          // Close terminal
-          term.write('exit\n');
-          await new Promise((res) => setTimeout(res, 500));
-          term.kill();
-        } catch (err) {
-          term.kill();
-          reject(err);
-        }
-      })();
-    });
+    return {
+      duration: totalDuration,
+      frames,
+      output,
+      path: outPath,
+    };
   } catch (err) {
     throw new Error(`Failed to record terminal: ${err.message}`);
   }
 }
 
 /**
- * Records browser session using Playwright
- * @param {Array<{action: string, target?: string, delay?: number}>} steps - Navigation/click actions
- * @param {string} outPath - Output video file path
- * @returns {Promise<{duration: number, videoPath: string}>}
+ * Records browser session using Playwright screenshots at each step.
+ * Does NOT require ffmpeg — output is a JSON file with base64 PNG frames.
+ * @param {Array<{action: string, target?: string, text?: string, delay?: number}>} steps
+ * @param {string} outPath - Output JSON file path
+ * @param {Object} opts - Options: { viewport: {width, height} }
+ * @returns {Promise<{duration: number, frames: Array, path: string}>}
  */
-export async function recordBrowser(steps, outPath) {
+export async function recordBrowser(steps, outPath, opts = {}) {
   if (!Array.isArray(steps) || steps.length === 0) {
     throw new Error('steps must be a non-empty array');
   }
@@ -112,46 +106,55 @@ export async function recordBrowser(steps, outPath) {
     throw new Error('outPath is required');
   }
 
+  const viewport = opts.viewport || { width: 1280, height: 720 };
   const dir = path.dirname(outPath);
   await fs.mkdir(dir, { recursive: true });
 
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
-    recordVideo: { dir },
-  });
+  const context = await browser.newContext({ viewport });
 
+  const frames = [];
   const startTime = Date.now();
 
   try {
     const page = await context.newPage();
 
     for (const step of steps) {
-      const delay = step.delay || 500;
+      const delay = step.delay || 800;
 
       if (step.action === 'goto') {
-        await page.goto(step.target, { waitUntil: 'networkidle' });
+        await page.goto(step.target, { waitUntil: 'networkidle', timeout: step.timeout || 60000 });
       } else if (step.action === 'click') {
-        await page.click(step.target);
-      } else if (step.action === 'type') {
-        await page.type(step.target, step.text || '');
+        await page.click(step.target, { timeout: step.timeout || 60000 });
+      } else if (step.action === 'fill' || step.action === 'type') {
+        await page.fill(step.target, step.text || '', { timeout: step.timeout || 60000 });
       } else if (step.action === 'wait') {
         await page.waitForTimeout(delay);
         continue;
       }
+      // 'screenshot' and 'assert' fall through — just capture the current state
 
       await new Promise((res) => setTimeout(res, delay));
+
+      const screenshotBuf = await page.screenshot({ fullPage: false });
+      frames.push({
+        timestamp: Date.now() - startTime,
+        screenshot: screenshotBuf.toString('base64'),
+        action: step.action,
+        caption: step.caption || '',
+        frameDelay: step.frameDelay || delay,
+        type: 'browser',
+      });
     }
 
     const duration = Date.now() - startTime;
-    const videoPath = await page.video().path();
-
     await context.close();
     await browser.close();
 
-    return {
-      duration,
-      videoPath,
-    };
+    const recording = { type: 'browser', frames, duration, viewport };
+    await fs.writeFile(outPath, JSON.stringify(recording, null, 2));
+
+    return { duration, frames, path: outPath };
   } catch (err) {
     await context.close();
     await browser.close();

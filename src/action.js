@@ -5,6 +5,8 @@
  * - Posts comments with artifacts to PRs
  */
 
+import fs from 'fs/promises';
+
 /**
  * Detect GitHub Actions context from environment variables
  * @returns {Object} Context object with GitHub metadata
@@ -53,14 +55,128 @@ async function extractPRNumber() {
 }
 
 /**
+ * Run pipeline locally (works anywhere, not just GitHub Actions)
+ * Loads scenario, records, processes, returns artifacts
+ * @param {string} scenarioPath - Path to scenario file
+ * @param {Object} opts - Options {output, gif, optimize, timeout}
+ * @returns {Promise<Object>} {status, artifacts, outputDir, message}
+ */
+export async function runLocal(scenarioPath, opts = {}) {
+  try {
+    // Import pipeline modules
+    const { loadScenario } = await import('./scenario.js').catch(() => ({
+      loadScenario: null,
+    }));
+    
+    const { recordTerminal, recordBrowser } = await import('./recorder.js').catch(() => ({
+      recordTerminal: null,
+      recordBrowser: null,
+    }));
+    
+    const { trimVideo } = await import('./processor.js').catch(() => ({
+      trimVideo: null,
+    }));
+
+    if (!loadScenario || !recordTerminal || !recordBrowser || !trimVideo) {
+      return {
+        status: 'error',
+        message: 'Pipeline modules not available',
+        artifacts: [],
+        outputDir: opts.output || './artifacts',
+      };
+    }
+
+    const outputDir = opts.output || './artifacts';
+    
+    // Ensure output directory exists
+    await fs.mkdir(outputDir, { recursive: true });
+    
+    // 1. Load scenario
+    const scenario = await loadScenario(scenarioPath);
+
+    // Resolve viewport / resolution
+    const scenarioViewport = scenario.metadata?.browser_config?.viewport;
+    const width  = opts.width  || scenarioViewport?.width  || 1280;
+    const height = opts.height || scenarioViewport?.height || 720;
+    const viewport = { width, height };
+
+    // Classify steps
+    const BROWSER_TYPES = new Set(['navigate', 'click', 'type', 'fill', 'screenshot', 'assert', 'wait']);
+    const browserSteps = scenario.steps.filter(s => BROWSER_TYPES.has(s.type));
+    const terminalSteps = scenario.steps
+      .filter(s => s.command || s.commands)
+      .map(s => Array.isArray(s.commands)
+        ? { cmd: s.commands.join(' && '), delay: s.delay || 1000 }
+        : { cmd: s.command, delay: s.delay || 1000 }
+      );
+
+    if (terminalSteps.length === 0 && browserSteps.length === 0) {
+      return {
+        status: 'error',
+        message: 'No executable steps found in scenario',
+        artifacts: [],
+        outputDir,
+      };
+    }
+
+    const artifacts = [];
+
+    // 2a. Terminal recording
+    if (terminalSteps.length > 0) {
+      const recordingData = await recordTerminal(terminalSteps, `${outputDir}/recording.json`);
+      const gifPath = `${outputDir}/demo.gif`;
+      await trimVideo(recordingData.path, gifPath, { width, height });
+      artifacts.push(gifPath);
+    }
+
+    // 2b. Browser recording
+    if (browserSteps.length > 0) {
+      // Map YAML step types to recorder action format
+      const recorderSteps = browserSteps.map(s => ({
+        action: s.type === 'navigate' ? 'goto' : s.type,
+        target: s.url || s.selector || null,
+        text: s.text || s.value || null,
+        caption: s.caption || '',
+        delay: s.delay || 800,
+        timeout: s.timeout,
+      }));
+
+      const browserRecording = await recordBrowser(
+        recorderSteps,
+        `${outputDir}/browser-recording.json`,
+        { viewport }
+      );
+      const browserGifPath = `${outputDir}/browser-demo.gif`;
+      await trimVideo(browserRecording.path, browserGifPath, { width, height });
+      artifacts.push(browserGifPath);
+    }
+
+    return {
+      status: 'success',
+      artifacts,
+      outputDir,
+      message: `Demo generated successfully: ${artifacts.length} artifact(s)`,
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      message: error.message,
+      error,
+      artifacts: [],
+      outputDir: opts.output || './artifacts',
+    };
+  }
+}
+
+/**
  * Run full pipeline in GitHub Actions context
  * Loads scenario, records, processes, writes step outputs
  * @param {string} scenarioPath - Path to scenario file
- * @param {Object} opts - Options {output, gif, optimize}
+ * @param {Object} opts - Options {output, gif, optimize, timeout}
  * @returns {Promise<Object>} {status, artifacts, outputs}
  */
 export async function runAction(scenarioPath, opts = {}) {
-  const context = detectContext();
+  const context = await detectContext();
   
   if (!context.isGitHub) {
     throw new Error('Not running in GitHub Actions context');
@@ -72,19 +188,19 @@ export async function runAction(scenarioPath, opts = {}) {
 
   try {
     // Import pipeline modules
-    const { readScenario } = await import('./scenario.js').catch(() => ({
-      readScenario: null,
+    const { loadScenario } = await import('./scenario.js').catch(() => ({
+      loadScenario: null,
     }));
     
-    const { recordSession } = await import('./recorder.js').catch(() => ({
-      recordSession: null,
+    const { recordTerminal } = await import('./recorder.js').catch(() => ({
+      recordTerminal: null,
     }));
     
-    const { processRecording } = await import('./processor.js').catch(() => ({
-      processRecording: null,
+    const { trimVideo } = await import('./processor.js').catch(() => ({
+      trimVideo: null,
     }));
 
-    if (!readScenario || !recordSession || !processRecording) {
+    if (!loadScenario || !recordTerminal || !trimVideo) {
       return {
         status: 'error',
         message: 'Pipeline modules not available',
@@ -94,23 +210,45 @@ export async function runAction(scenarioPath, opts = {}) {
 
     const outputDir = opts.output || `${context.workspace}/artifacts`;
     
-    // 1. Read scenario
-    const scenario = await readScenario(scenarioPath);
+    // Ensure output directory exists
+    await fs.mkdir(outputDir, { recursive: true });
     
-    // 2. Record session
-    const recordingPath = await recordSession(scenario, {
-      headless: true,
-      timeout: opts.timeout || 60000,
-    });
+    // 1. Load scenario
+    const scenario = await loadScenario(scenarioPath);
     
-    // 3. Process recording
-    const artifacts = await processRecording(recordingPath, {
-      output: outputDir,
-      gif: opts.gif !== false,
-      optimize: opts.optimize !== false,
+    // 2. Transform scenario steps to recorder format
+    const commands = scenario.steps
+      .filter(step => step.command || step.commands)
+      .map(step => {
+        // Handle sequence steps with multiple commands
+        if (Array.isArray(step.commands)) {
+          return { cmd: step.commands.join(' && '), delay: step.delay || 1000 };
+        }
+        // Handle single command steps
+        return { cmd: step.command, delay: step.delay || 1000 };
+      });
+    
+    if (commands.length === 0) {
+      return {
+        status: 'error',
+        message: 'No executable commands found in scenario steps',
+        artifacts: [],
+      };
+    }
+    
+    // 3. Record session
+    const recordingData = await recordTerminal(commands, `${outputDir}/recording.json`);
+    
+    // 4. Process recording (convert to GIF)
+    const gifPath = `${outputDir}/demo.gif`;
+    const result = await trimVideo(recordingData.path, gifPath, {
+      silenceThreshold: opts.silenceThreshold || -40,
+      silenceDuration: opts.silenceDuration || 0.5,
     });
 
-    // 4. Set GitHub Actions step outputs
+    const artifacts = [gifPath];
+
+    // 5. Set GitHub Actions step outputs
     if (artifacts.length > 0) {
       await setOutput('artifacts', artifacts.join(','));
       await setOutput('artifact-count', String(artifacts.length));

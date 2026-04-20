@@ -1,318 +1,459 @@
+<div align="center">
+
+<img src="./docs/logo.png" alt="repo-shot" width="120" />
+
 # repo-shot
 
-> **Turn any CLI workflow into a polished GIF — automatically.**
+**Turn any CLI workflow or browser session into a polished GIF — automatically.**
 
-![repo-shot demo](./docs/demo.gif)
+[![npm version](https://img.shields.io/npm/v/repo-shot?color=ff6b6b&style=flat-square)](https://www.npmjs.com/package/repo-shot)
+[![license](https://img.shields.io/github/license/your-org/repo-shot?color=4ecdc4&style=flat-square)](./LICENSE)
+[![node](https://img.shields.io/badge/node-%3E%3D18-brightgreen?style=flat-square)](https://nodejs.org/)
+[![playwright](https://img.shields.io/badge/powered%20by-Playwright-2EAD33?style=flat-square)](https://playwright.dev/)
 
----
+![repo-shot terminal demo](./docs/demo-terminal.gif)
 
-## Why repo-shot?
+> Write a YAML file. Run one command. Ship a perfect GIF to your README, PR, or docs — forever.
 
-Your README demos are stale. Your docs go out of sync. Your screenshots lie.
-**repo-shot** captures real terminal sessions and browser interactions, turns them
-into optimized GIFs, and automatically posts them to your PRs. Write once in YAML,
-record once, GIF it forever—no manual screen recording, no outdated images, no
-excuses.
+[**Quickstart**](#quickstart) · [**Templates**](#template-library) · [**Examples**](#examples) · [**CLI Reference**](#cli-reference)
 
----
-
-## Prerequisites
-
-Before installing `repo-shot`, ensure you have:
-
-- **Node.js 18+** — [Download](https://nodejs.org/)
-- **ffmpeg** — Required for video processing
-  - macOS: `brew install ffmpeg`
-  - Ubuntu/Debian: `apt-get install ffmpeg`
-  - Windows: [Download](https://ffmpeg.org/download.html)
-- **gifsicle** *(optional)* — For advanced GIF optimization
-  - macOS: `brew install gifsicle`
-  - Ubuntu/Debian: `apt-get install gifsicle`
-  - Windows: [Download](https://www.lcdf.org/gifsicle/)
+</div>
 
 ---
 
-## Installation
+## The Problem
 
-Install globally via npm:
+Your README screenshots are **stale**. Your demo GIFs are **outdated**. Your docs team is
+running OBS and Gifski manually every sprint. You paste in a screenshot that was taken 3
+months ago and still shows the old logo.
 
-```bash
-npm install -g repo-shot
-```
+**repo-shot fixes that.**
 
-Or run directly without installation:
+Define your demo in YAML once. Every time you push, it re-records and regenerates — real
+commands, real browser, real output. No lies, no stale screenshots, no busywork.
 
-```bash
-npx repo-shot --version
-```
+---
+
+## What It Looks Like
+
+### Terminal Demos
+
+![CLI demo GIF](./docs/demo-cli.gif)
+
+> Record real shell commands — `npm install`, API calls, file operations, piped output.
+
+### Browser Demos
+
+![Browser demo GIF](./docs/demo-browser.gif)
+
+> Automate any web UI — login flows, dropdowns, form submission, checkout journeys.
+
+### Mobile Viewport
+
+![Mobile demo GIF](./docs/demo-mobile.gif)
+
+> Record at 375×667 or any resolution. Desktop, tablet, mobile — all covered.
 
 ---
 
 ## Quickstart
 
-### 1. Create a scenario file
+**Prerequisites:** Node.js 18+
 
-Create a `scenario.yml` to describe your demo:
+```bash
+npm install -g repo-shot
+```
+
+Create `scenario.yml`:
 
 ```yaml
 scenario:
-  name: Install Dependencies
-  description: Installing npm packages for a Node.js project
-  
+  name: My First Demo
   steps:
     - type: shell
-      command: npm install
-      caption: "Installing dependencies..."
-      output_capture: true
-    
+      command: echo "Hello, repo-shot!"
+      caption: "Running my first command"
     - type: shell
-      command: npm test
-      caption: "Running tests"
-      output_capture: true
+      command: ls -la
+      caption: "Listing files"
 ```
 
-### 2. Run the scenario
+Run it:
 
 ```bash
 repo-shot run scenario.yml
+# ✓ Demo generated successfully
+# Artifacts:
+#   • ./artifacts/demo.gif
 ```
 
-Your GIF will be saved to `./artifacts/` by default. Use `--output` to customize:
-
-```bash
-repo-shot run scenario.yml --output ./my-demos
-```
-
-### 3. Preview before committing
-
-Generate an unoptimized version for quick feedback:
-
-```bash
-repo-shot preview scenario.yml
-```
+That's it. Open `./artifacts/demo.gif` and drop it in your README.
 
 ---
 
 ## Features
 
+<table>
+<tr>
+<td width="50%">
+
 ### 🖥️ Terminal Recording
+Record actual shell commands with authentic output — not fake typed animations.
+Supports pipes, multi-step sequences, and complex commands like `curl | jq`.
 
-- **Node-PTY integration** — Real pseudo-terminal capture with authentic output
-- **Multi-step scripts** — Chain complex shell commands with `type: sequence`
-- **Output capture** — Preserve command output in the GIF frame
+</td>
+<td width="50%">
 
-### 🌐 Browser Recording
+### 🌐 Browser Automation
+Playwright-powered browser recording. Navigate, click, fill forms, take screenshots.
+Works with any site — no special setup needed.
 
-- **Playwright-powered** — Automate any web UI (click, type, navigate)
-- **Viewport control** — Record at any resolution (mobile, tablet, desktop)
-- **Interactions** — Click buttons, submit forms, test workflows
+</td>
+</tr>
+<tr>
+<td width="50%">
 
-### 🎬 GIF Optimization
+### 🎬 Pure JS GIFs
+No ffmpeg. No external dependencies. Canvas-based rendering with macOS-style terminal
+UI. Generate GIFs at any resolution.
 
-- **FFmpeg conversion** — Video → GIF with tunable quality
-- **gifsicle compression** — Ultra-small file sizes (optional)
-- **Configurable speed** — Adjust playback speed to match your narrative
+</td>
+<td width="50%">
 
-### 🤖 GitHub Actions Integration
+### 🤖 GitHub Actions
+Auto-post generated GIFs as PR comments. Every pull request gets a live demo
+attached — zero manual work.
 
-- **Auto-comment PRs** — Post GIFs directly to pull requests
-- **Environment detection** — Works seamlessly in CI/CD
-- **Artifact linking** — Build URLs point to Actions artifacts
+</td>
+</tr>
+<tr>
+<td width="50%">
 
-### 📝 Flexible Scenario Format
+### 📐 Any Resolution
+Pass `--width` and `--height` flags, or set viewport in YAML. 1280×720, 375×667
+mobile, 1920×1080 full-HD — your call.
 
-- **YAML & JSON** — Choose your syntax
-- **Captions & metadata** — Add context and difficulty levels
-- **Validation** — Built-in schema checking
+</td>
+<td width="50%">
 
-### 🏷️ Interactive Captions
+### 📦 8 Ready Templates
+Terminal, browser, mobile, e-commerce, API testing — copy one and customize. All
+tested against real public demo sites.
 
-- Display overlay text during playback
-- Highlight key moments in your demo
+</td>
+</tr>
+</table>
 
 ---
 
 ## Examples
 
-### Example 1: CLI Demo Scenario
+### Example 1 — CLI Demo
 
-```yaml
-scenario:
-  name: CLI Demo - Basic Commands
-  description: Demonstrates basic shell operations
-  captions:
-    intro: "Let's explore some basic commands"
-    demo: "Running commands in the terminal"
-    conclusion: "That's how you use the CLI!"
-  
-  steps:
-    - type: shell
-      command: echo "Welcome to repo-shot"
-      caption: "Echo a welcome message"
-      output_capture: true
-    
-    - type: shell
-      command: pwd && ls -la
-      caption: "Show current directory and files"
-      output_capture: true
-    
-    - type: sequence
-      caption: "Create and verify a file"
-      commands:
-        - echo "Hello from repo-shot" > demo.txt
-        - cat demo.txt
-        - rm demo.txt
-      output_capture: true
+![CLI example GIF](./docs/example-cli.gif)
+
+```bash
+repo-shot run templates/cli-demo.yml
 ```
 
-### Example 2: Browser UI Demo
+```yaml
+scenario:
+  name: CLI Demo
+  steps:
+    - type: shell
+      command: echo "Hello from repo-shot"
+      caption: "Say hello"
+    - type: shell
+      command: ls -la
+      caption: "List project files"
+```
+
+---
+
+### Example 2 — API Testing with `curl | jq`
+
+![API testing GIF](./docs/example-api.gif)
+
+```bash
+repo-shot run templates/api-testing.yml
+```
 
 ```yaml
 scenario:
-  name: Feature Walkthrough
-  description: Interactive web UI demo
-  
+  name: API Testing
+  steps:
+    - type: shell
+      command: curl -s https://jsonplaceholder.typicode.com/posts/1 | jq '.title'
+      caption: "Fetch a post title"
+```
+
+---
+
+### Example 3 — Browser Login Flow
+
+![Browser login GIF](./docs/example-browser.gif)
+
+```bash
+repo-shot run templates/form-submission.yml
+```
+
+```yaml
+scenario:
+  name: Login Flow
   steps:
     - type: navigate
-      url: https://example.com
-      caption: "Opening the app"
-    
+      url: https://the-internet.herokuapp.com/login
+      caption: "Open login page"
+    - type: fill
+      selector: "#username"
+      text: "tomsmith"
+      caption: "Enter username"
+    - type: fill
+      selector: "#password"
+      text: "SuperSecretPassword!"
+      caption: "Enter password"
     - type: click
-      selector: "button[data-feature]"
-      caption: "Clicking the feature button"
-    
+      selector: "button.radius"
+      caption: "Submit"
     - type: screenshot
-      caption: "Feature is now active"
+      caption: "Logged in!"
 ```
 
-### Example 3: GitHub Actions Workflow
+---
 
-Add this to your `.github/workflows/demo.yml`:
+### Example 4 — E-Commerce Checkout
+
+![E-commerce checkout GIF](./docs/example-ecommerce.gif)
+
+```bash
+repo-shot run templates/ecommerce-checkout.yml
+```
+
+Full flow: login → add to cart → proceed to checkout → fill shipping → confirm.
+
+---
+
+### Example 5 — Mobile Responsive at 375×667
+
+![Mobile responsive GIF](./docs/example-mobile.gif)
+
+```bash
+repo-shot run templates/mobile-responsive.yml
+```
+
+Records at iPhone SE dimensions. Shows exactly what mobile users see.
+
+---
+
+### Example 6 — Mixed Terminal + Browser
 
 ```yaml
-name: Generate Demo
+scenario:
+  name: Full Deploy Workflow
+  steps:
+    # Terminal: build the project
+    - type: shell
+      command: npm run build
+      caption: "Build project"
+
+    # Browser: verify in the UI
+    - type: navigate
+      url: http://localhost:3000
+      caption: "Open in browser"
+    - type: screenshot
+      caption: "Build deployed!"
+```
+
+Generates two GIFs: `demo.gif` (terminal) and `browser-demo.gif` (browser).
+
+---
+
+### Example 7 — GitHub Actions
+
+```yaml
+# .github/workflows/demo.yml
+name: Regenerate Demo GIFs
 
 on:
-  pull_request:
-    paths:
-      - 'scenario.yml'
-      - 'src/**'
+  push:
+    branches: [main]
 
 jobs:
   demo:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '18'
-      
-      - name: Install ffmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-      
-      - name: Install repo-shot
-        run: npm install -g repo-shot
-      
-      - name: Generate demo
-        run: repo-shot action --scenario scenario.yml
+      - run: npm install -g repo-shot
+      - run: repo-shot action --scenario scenario.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### Example 4: Template Scaffolding
+Every push regenerates your GIF and posts it as a PR comment automatically.
 
-Bootstrap a new scenario from a template:
+---
+
+## Template Library
+
+8 production-ready templates, all tested against real public sites.
+
+### Terminal Templates
+
+| Template | What It Does | Command |
+|---|---|---|
+| `cli-demo.yml` | Echo, ls, file ops | `repo-shot run templates/cli-demo.yml` |
+| `install-hello.yml` | npm install + verification | `repo-shot run templates/install-hello.yml` |
+| `api-testing.yml` | REST API calls with `curl \| jq` | `repo-shot run templates/api-testing.yml` |
+
+### Browser Templates
+
+| Template | What It Does | Site |
+|---|---|---|
+| `web-ui-flow.yml` | Dropdown interaction | the-internet.herokuapp.com |
+| `form-submission.yml` | Login form with validation | the-internet.herokuapp.com |
+| `dashboard-analytics.yml` | Add/remove elements | the-internet.herokuapp.com |
+| `ecommerce-checkout.yml` | Login → cart → checkout | saucedemo.com |
+| `mobile-responsive.yml` | Mobile 375×667 shopping flow | saucedemo.com |
+
+Use any template as-is or as a starting point:
 
 ```bash
-# List available templates
-repo-shot template list
-
-# Create a basic template
-repo-shot template init basic --output my-scenario.js
-
-# Create a feature showcase template
-repo-shot template init feature --output feature-demo.js
+cp templates/ecommerce-checkout.yml my-shop-demo.yml
+# Edit selectors for your own site
+repo-shot run my-shop-demo.yml
 ```
 
 ---
 
-## CLI Commands
+## CLI Reference
 
-```bash
-# Run a scenario and generate a GIF
-repo-shot run <scenario>
-  --output <dir>         Output directory (default: ./artifacts)
-  --no-optimize          Skip gifsicle optimization
-  --timeout <ms>         Recording timeout in milliseconds (default: 60000)
-
-# Preview a scenario without optimization
-repo-shot preview <scenario>
-  --timeout <ms>         Recording timeout in milliseconds
-
-# List available templates
-repo-shot template list
-
-# Create a template scaffold
-repo-shot template init <name>
-  --output <file>        Save to file (default: scenario.js)
-
-# Run as GitHub Action
-repo-shot action
-  --scenario <file>      Path to scenario file (default: scenario.yml)
-  --dry-run              Test locally without recording
 ```
+repo-shot run <scenario>        Record and generate GIF
+  --output <dir>                Output directory       (default: ./artifacts)
+  --width  <px>                 GIF width              (default: 1280)
+  --height <px>                 GIF height             (default: 720)
+  --timeout <ms>                Step timeout           (default: 60000)
+
+repo-shot preview <scenario>    Quick preview, no optimization
+
+repo-shot template list         List built-in templates
+repo-shot template init <name>  Scaffold a new scenario file
+```
+
+**Resolution priority** (highest wins):
+1. `--width` / `--height` CLI flags
+2. `metadata.browser_config.viewport` in YAML
+3. Default: `1280 × 720`
+
+---
+
+## Step Reference
+
+### Terminal Steps
+
+```yaml
+- type: shell         # Run a single command
+  command: npm test
+  caption: "Running tests"
+  delay: 500
+
+- type: sequence      # Run multiple commands in order
+  commands:
+    - npm install
+    - npm run build
+    - npm test
+  caption: "Full build pipeline"
+```
+
+### Browser Steps
+
+```yaml
+- type: navigate      # Go to a URL
+  url: https://example.com
+  timeout: 30000
+
+- type: click         # Click an element
+  selector: "button.primary"
+
+- type: fill          # Fill a form field
+  selector: "#email"
+  text: "user@example.com"
+
+- type: wait          # Pause
+  delay: 1500
+
+- type: screenshot    # Capture the current state
+  caption: "Result"
+```
+
+---
+
+## Installation Notes
+
+**macOS:**
+```bash
+xcode-select --install   # Build tools for native modules
+npm install -g repo-shot
+npx playwright install chromium
+```
+
+**Ubuntu/Debian:**
+```bash
+apt-get install -y python3 build-essential
+npm install -g repo-shot
+npx playwright install chromium --with-deps
+```
+
+**Windows:** Requires Visual Studio Build Tools and Python 3. See [node-gyp docs](https://github.com/nodejs/node-gyp#on-windows).
 
 ---
 
 ## Roadmap
 
-- [ ] **MP4 Export** — In addition to GIFs, generate MP4 videos with audio
-- [ ] **Custom Themes** — Syntax highlighting, custom fonts, dark mode
-- [ ] **Cloud Upload** — Auto-upload artifacts to S3, Cloudinary, or Vercel
-- [ ] **VS Code Extension** — Record scenarios directly from the editor
-- [ ] **Multi-language Captions** — i18n support for global docs
-- [ ] **Batch Processing** — Run multiple scenarios in one command
-- [ ] **Interactive Mode** — Click-through scenario builder UI
+- [x] Terminal recording
+- [x] Browser recording (Playwright)
+- [x] Pure JS GIF generation (no ffmpeg)
+- [x] Configurable resolution
+- [x] GitHub Actions integration
+- [x] 8 production templates
+- [ ] MP4 / WebM export
+- [ ] Custom terminal themes (dark, light, Dracula, Nord)
+- [ ] Cloud upload (S3, Cloudinary, Vercel Blob)
+- [ ] VS Code extension
+- [ ] Batch scenario runner
+- [ ] Interactive scenario builder UI
 
 ---
 
 ## Contributing
 
-We love contributions! Here's how to get started:
-
-1. **Fork** this repository
-2. **Create a branch** for your feature:
-
-   ```bash
-   git checkout -b feat/your-feature-name
-   ```
-
-3. **Make your changes** and test thoroughly
-4. **Commit** with a clear message:
-
-   ```bash
-   git commit -m "feat: add your awesome feature"
-   ```
-
-5. **Push** and open a **Pull Request**
-
-### Running Tests
-
 ```bash
-npm test              # Run all tests once
-npm run test:watch    # Watch mode for development
+git clone https://github.com/your-org/repo-shot
+cd repo-shot
+npm install
+npm test
 ```
+
+1. Fork → branch → commit → PR.
+2. Run `npm test` before submitting.
+3. Add a template in `templates/` if your PR adds a new use case.
 
 ---
 
 ## License
 
-MIT — See [LICENSE](./LICENSE) for details.
+MIT — see [LICENSE](./LICENSE).
 
 ---
 
-**Made with ❤️ by developers, for developers.**
+<div align="center">
+
+**Built for developers who ship.**
+
+*Stop recording demos by hand. Write YAML once, GIF forever.*
+
+</div>
+

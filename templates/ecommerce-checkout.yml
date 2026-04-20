@@ -1,0 +1,154 @@
+scenario:
+  name: E-Commerce Checkout Flow
+  description: Complete e-commerce purchase journey with Sauce Labs demo store
+  version: 1.0
+
+  captions:
+    intro: "E-Commerce Demo"
+    browsing: "Browsing products"
+    selection: "Selecting items"
+    cart: "Reviewing shopping cart"
+    checkout: "Proceeding to checkout"
+    completion: "Checkout flow demonstrated"
+
+  steps:
+    - type: navigate
+      url: https://www.saucedemo.com/
+      caption: "Visit Sauce Labs demo store"
+      timeout: 30000
+      delay: 1200
+
+    - type: screenshot
+      caption: "Store login page displayed"
+      delay: 800
+
+    - type: click
+      selector: "[data-test='username']"
+      caption: "Focus on username field"
+      delay: 300
+
+    - type: fill
+      selector: "[data-test='username']"
+      text: "standard_user"
+      caption: "Enter username"
+      delay: 500
+
+    - type: click
+      selector: "[data-test='password']"
+      caption: "Focus on password field"
+      delay: 300
+
+    - type: fill
+      selector: "[data-test='password']"
+      text: "secret_sauce"
+      caption: "Enter password"
+      delay: 500
+
+    - type: click
+      selector: "[data-test='login-button']"
+      caption: "Click login button"
+      delay: 800
+
+    - type: wait
+      delay: 2000
+      caption: "Processing login..."
+
+    - type: screenshot
+      caption: "Inventory page loaded"
+      delay: 800
+
+    - type: click
+      selector: "[data-test='add-to-cart-sauce-labs-backpack']"
+      caption: "Add Backpack to cart"
+      delay: 600
+
+    - type: screenshot
+      caption: "Item added to cart"
+      delay: 800
+
+    - type: click
+      selector: "[data-test='add-to-cart-sauce-labs-bike-light']"
+      caption: "Add Bike Light to cart"
+      delay: 600
+
+    - type: wait
+      delay: 800
+      caption: "Items being added"
+
+    - type: screenshot
+      caption: "Multiple items in cart"
+      delay: 1000
+
+    - type: click
+      selector: "[data-test='shopping-cart-link']"
+      caption: "Open shopping cart"
+      delay: 600
+
+    - type: screenshot
+      caption: "Shopping cart contents displayed"
+      delay: 1000
+
+    - type: click
+      selector: "[data-test='checkout']"
+      caption: "Start checkout process"
+      delay: 700
+
+    - type: wait
+      delay: 1200
+      caption: "Loading checkout form"
+
+    - type: screenshot
+      caption: "Checkout information form displayed"
+      delay: 800
+
+    - type: click
+      selector: "[data-test='firstName']"
+      caption: "Focus on first name field"
+      delay: 300
+
+    - type: fill
+      selector: "[data-test='firstName']"
+      text: "John"
+      caption: "Enter first name"
+      delay: 500
+
+    - type: click
+      selector: "[data-test='lastName']"
+      caption: "Focus on last name field"
+      delay: 300
+
+    - type: fill
+      selector: "[data-test='lastName']"
+      text: "Doe"
+      caption: "Enter last name"
+      delay: 500
+
+    - type: click
+      selector: "[data-test='postalCode']"
+      caption: "Focus on postal code field"
+      delay: 300
+
+    - type: fill
+      selector: "[data-test='postalCode']"
+      text: "12345"
+      caption: "Enter postal code"
+      delay: 500
+
+    - type: screenshot
+      caption: "Checkout form fully completed"
+      delay: 800
+
+  metadata:
+    tags:
+      - ecommerce
+      - shopping
+      - checkout
+      - browser
+      - user-flow
+    difficulty: advanced
+    estimated_time: 120s
+    browser_config:
+      headless: true
+      viewport:
+        width: 1280
+        height: 720

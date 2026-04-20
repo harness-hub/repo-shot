@@ -1,0 +1,102 @@
+scenario:
+  name: Mobile Responsive Design
+  description: Demonstrates responsive design on mobile viewport (375x667)
+  version: 1.0
+  
+  browser_config:
+    viewport:
+      width: 375
+      height: 667
+
+  captions:
+    intro: "Testing responsive design"
+    navigation: "Loading on mobile viewport"
+    browsing: "Browsing products"
+    interaction: "Interacting with mobile UI"
+    confirmation: "Mobile layout working perfectly"
+
+  steps:
+    - type: navigate
+      url: https://www.saucedemo.com/
+      caption: "Open store on mobile device"
+      timeout: 30000
+      delay: 1200
+
+    - type: screenshot
+      caption: "Login page on mobile (375×667)"
+      delay: 800
+
+    - type: click
+      selector: "[data-test='username']"
+      caption: "Tap username field"
+      delay: 300
+
+    - type: fill
+      selector: "[data-test='username']"
+      text: "standard_user"
+      caption: "Enter username"
+      delay: 500
+
+    - type: click
+      selector: "[data-test='password']"
+      caption: "Tap password field"
+      delay: 300
+
+    - type: fill
+      selector: "[data-test='password']"
+      text: "secret_sauce"
+      caption: "Enter password"
+      delay: 500
+
+    - type: click
+      selector: "[data-test='login-button']"
+      caption: "Tap login button"
+      delay: 800
+
+    - type: wait
+      delay: 2000
+      caption: "Processing login..."
+
+    - type: screenshot
+      caption: "Inventory on mobile viewport"
+      delay: 800
+
+    - type: click
+      selector: "[data-test='add-to-cart-sauce-labs-backpack']"
+      caption: "Tap add to cart button"
+      delay: 600
+
+    - type: wait
+      delay: 600
+      caption: "Item added"
+
+    - type: screenshot
+      caption: "Product added confirmation"
+      delay: 800
+
+    - type: click
+      selector: "[data-test='shopping-cart-link']"
+      caption: "Tap shopping cart icon"
+      delay: 600
+
+    - type: wait
+      delay: 800
+      caption: "Loading cart page"
+
+    - type: screenshot
+      caption: "Mobile shopping cart view"
+      delay: 800
+
+  metadata:
+    tags:
+      - mobile
+      - responsive
+      - ui
+      - browser
+    difficulty: beginner
+    estimated_time: 50s
+    browser_config:
+      headless: true
+      viewport:
+        width: 375
+        height: 667

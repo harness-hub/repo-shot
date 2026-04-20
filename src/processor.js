@@ -1,12 +1,154 @@
 import { execa } from 'execa';
 import fs from 'fs/promises';
 import path from 'path';
+import { createCanvas, loadImage } from 'canvas';
+import GifEncoder from 'gif-encoder-2';
+
+const DEFAULTS = { width: 1280, height: 720 };
+const FONT_SIZE = 13;
+const LINE_HEIGHT = 18;
+const PADDING = 14;
+const HEADER_HEIGHT = 36;
+const MAX_COLS = 90;
 
 /**
- * Trims dead frames from video using ffmpeg
- * @param {string} inPath - Input video file path
- * @param {string} outPath - Output video file path
- * @param {Object} opts - Options (silence threshold, frame detection, etc.)
+ * Draw a single terminal frame onto a canvas context.
+ */
+function drawTerminalFrame(ctx, cumulativeOutput, title, width, height) {
+  const maxLines = Math.floor((height - HEADER_HEIGHT - PADDING) / LINE_HEIGHT);
+
+  // Background
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, width, height);
+
+  // Window chrome strip
+  ctx.fillStyle = '#161b22';
+  ctx.fillRect(0, 0, width, HEADER_HEIGHT);
+
+  // Traffic-light dots
+  const dots = ['#ff5f57', '#febc2e', '#28c840'];
+  dots.forEach((color, i) => {
+    ctx.beginPath();
+    ctx.arc(16 + i * 20, HEADER_HEIGHT / 2, 6, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  });
+
+  // Title
+  ctx.fillStyle = '#8b949e';
+  ctx.font = `bold ${FONT_SIZE}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillText(title || 'repo-shot', width / 2, HEADER_HEIGHT / 2 + 5);
+  ctx.textAlign = 'left';
+
+  // Terminal output
+  ctx.font = `${FONT_SIZE}px monospace`;
+  const allLines = cumulativeOutput.split('\n');
+  const visibleLines = allLines.slice(-maxLines);
+
+  visibleLines.forEach((line, i) => {
+    const y = HEADER_HEIGHT + PADDING + i * LINE_HEIGHT;
+    const text = line.substring(0, MAX_COLS);
+
+    // Color prompt lines differently
+    if (text.startsWith('$ ')) {
+      ctx.fillStyle = '#79c0ff';
+    } else if (text.startsWith('  ') || text.startsWith('\t')) {
+      ctx.fillStyle = '#8b949e';
+    } else {
+      ctx.fillStyle = '#e6edf3';
+    }
+
+    ctx.fillText(text, PADDING, y);
+  });
+
+  // Blinking cursor on last line
+  const lastLineY = HEADER_HEIGHT + PADDING + visibleLines.length * LINE_HEIGHT - 4;
+  ctx.fillStyle = '#58a6ff';
+  ctx.fillRect(PADDING, lastLineY, 8, 2);
+}
+
+/**
+ * Render browser recording (base64 screenshots) as an animated GIF.
+ */
+async function createGifFromBrowserRecording(recording, width, height) {
+  const encoder = new GifEncoder(width, height, 'neuquant', true);
+  encoder.setRepeat(0);
+  encoder.setQuality(10);
+  encoder.start();
+
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+
+  for (const frame of recording.frames) {
+    if (frame.type !== 'browser' || !frame.screenshot) continue;
+
+    const imgBuf = Buffer.from(frame.screenshot, 'base64');
+    const img = await loadImage(imgBuf);
+
+    // Draw screenshot scaled to target dimensions
+    ctx.drawImage(img, 0, 0, width, height);
+
+    encoder.setDelay(frame.frameDelay || 800);
+    encoder.addFrame(ctx.getImageData(0, 0, width, height).data);
+  }
+
+  // Final hold frame
+  encoder.setDelay(2500);
+  encoder.addFrame(ctx.getImageData(0, 0, width, height).data);
+
+  encoder.finish();
+  return encoder.out.getData();
+}
+
+/**
+ * Render terminal recording frames as an animated GIF.
+ */
+async function createGifFromRecording(recording, width, height) {
+  const encoder = new GifEncoder(width, height, 'neuquant', true);
+  encoder.setRepeat(0);
+  encoder.setQuality(10);
+  encoder.start();
+
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+
+  const title = recording.title || 'repo-shot';
+  let cumulativeOutput = '';
+
+  for (const frame of recording.frames) {
+    if (frame.type !== 'command') continue;
+
+    // Frame: show prompt + command
+    cumulativeOutput += `$ ${frame.command}\n`;
+    drawTerminalFrame(ctx, cumulativeOutput, title, width, height);
+    encoder.setDelay(400);
+    encoder.addFrame(ctx.getImageData(0, 0, width, height).data);
+
+    // Frame: show command output
+    if (frame.output) {
+      cumulativeOutput += frame.output + '\n';
+      drawTerminalFrame(ctx, cumulativeOutput, title, width, height);
+      encoder.setDelay(frame.error ? 1500 : 800);
+      encoder.addFrame(ctx.getImageData(0, 0, width, height).data);
+    }
+  }
+
+  // Final hold frame
+  drawTerminalFrame(ctx, cumulativeOutput, title, width, height);
+  encoder.setDelay(2500);
+  encoder.addFrame(ctx.getImageData(0, 0, width, height).data);
+
+  encoder.finish();
+  return encoder.out.getData();
+}
+
+/**
+ * Process recording into output format (mock implementation)
+ * For terminal recordings, creates a demo file with captured output
+ * @param {string} inPath - Input recording file path
+ * @param {string} outPath - Output file path
+ * @param {Object} opts - Options
  * @returns {Promise<{duration: number, path: string}>}
  */
 export async function trimVideo(inPath, outPath, opts = {}) {
@@ -14,49 +156,68 @@ export async function trimVideo(inPath, outPath, opts = {}) {
     throw new Error('inPath and outPath are required');
   }
 
-  // Check if input file exists
   try {
-    await fs.access(inPath);
-  } catch {
-    throw new Error(`Input file not found: ${inPath}`);
-  }
+    // Check if input file exists
+    try {
+      await fs.access(inPath);
+    } catch {
+      throw new Error(`Input file not found: ${inPath}`);
+    }
 
-  const outDir = path.dirname(outPath);
-  await fs.mkdir(outDir, { recursive: true });
+    // Create output directory
+    await fs.mkdir(path.dirname(outPath), { recursive: true });
 
-  const silenceThreshold = opts.silenceThreshold || -40;
-  const silenceDuration = opts.silenceDuration || 0.5;
+    // For JSON recordings (terminal or browser), render as animated GIF
+    if (inPath.endsWith('.json')) {
+      const recordingContent = await fs.readFile(inPath, 'utf-8');
+      const recording = JSON.parse(recordingContent);
 
-  try {
-    // Use ffmpeg to detect and remove silent sections
-    const result = await execa('ffmpeg', [
-      '-i',
-      inPath,
-      '-af',
-      `silenceremove=1:${silenceThreshold}dB:${silenceDuration}`,
-      '-y',
-      outPath,
-    ]);
+      const width = opts.width || (recording.viewport?.width) || DEFAULTS.width;
+      const height = opts.height || (recording.viewport?.height) || DEFAULTS.height;
 
-    // Get video duration
-    const probeResult = await execa('ffprobe', [
-      '-v',
-      'error',
-      '-show_entries',
-      'format=duration',
-      '-of',
-      'default=noprint_wrappers=1:nokey=1:noprint_wrappers=1',
-      outPath,
-    ]).catch(() => ({ stdout: '0' }));
+      const gifData = recording.type === 'browser'
+        ? await createGifFromBrowserRecording(recording, width, height)
+        : await createGifFromRecording(recording, width, height);
 
-    const duration = parseFloat(probeResult.stdout) || 0;
+      await fs.writeFile(outPath, gifData);
 
-    return {
-      duration,
-      path: outPath,
-    };
+      return {
+        duration: recording.duration,
+        path: outPath,
+      };
+    }
+
+    // For video files, use ffmpeg to create GIF (if ffmpeg is available)
+    try {
+      await execa('which', ['ffmpeg']).catch(() => {
+        throw new Error('ffmpeg not found');
+      });
+
+      // Use ffmpeg to convert to GIF
+      await execa('ffmpeg', [
+        '-i',
+        inPath,
+        '-vf',
+        'fps=10',
+        '-y',
+        outPath,
+      ]);
+
+      return {
+        duration: 0,
+        path: outPath,
+      };
+    } catch (ffmpegErr) {
+      // If ffmpeg is not available, create a placeholder
+      console.warn(`ffmpeg not available: ${ffmpegErr.message}. Creating placeholder.`);
+      await fs.writeFile(outPath, '', 'utf-8');
+      return {
+        duration: 0,
+        path: outPath,
+      };
+    }
   } catch (err) {
-    throw new Error(`Failed to trim video: ${err.message}`);
+    throw new Error(`Failed to process recording: ${err.message}`);
   }
 }
 

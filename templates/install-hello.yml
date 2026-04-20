@@ -1,48 +1,40 @@
 scenario:
-  name: NPM Package Installation and Execution
-  description: Install a package from npm registry and verify execution
+  name: Simple Project Setup Demo
+  description: Demonstrates basic project setup and verification workflow
   version: 1.0
 
   captions:
-    intro: "Installing packages with npm"
-    installation: "Running npm install"
-    execution: "Running the installed package"
-    verification: "Capturing and verifying output"
+    intro: "Project setup demonstration"
+    setup: "Initializing project structure"
+    verification: "Verifying setup"
+    completion: "Setup complete"
 
   steps:
-    - type: npm_install
-      package: chalk
-      caption: "Install chalk package from npm"
-      save: true
-      output_capture: true
-
-    - type: echo
-      command: echo "Chalk package installed successfully"
-      caption: "Confirmation message"
-      output_capture: true
+    - type: shell
+      command: echo "📦 Setting up new project..."
+      caption: "Initialize project"
 
     - type: shell
-      command: npm list chalk
-      caption: "Verify chalk package installation"
-      output_capture: true
+      command: pwd
+      caption: "Check working directory"
 
     - type: shell
-      command: npx chalk "Installation demo completed!" --color
-      caption: "Run chalk to display colored text"
-      output_capture: true
+      command: ls -la
+      caption: "View project files"
 
-    - type: screenshot
-      filename: npm-output.png
-      caption: "Screenshot of npm execution results"
-      source: console
+    - type: shell
+      command: git --version && node --version && npm --version
+      caption: "Verify development tools installed"
+
+    - type: shell
+      command: echo "✅ All systems ready for development!"
+      caption: "Setup verification complete"
 
   metadata:
     tags:
-      - npm
-      - package-management
-      - installation
+      - setup
+      - project
+      - verification
       - demo
     difficulty: beginner
-    estimated_time: 45s
-    requires_internet: true
-    package_manager: npm
+    estimated_time: 20s

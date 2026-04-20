@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import chalk from 'chalk';
 
-import { detectContext, runAction, commentOnPR } from './action.js';
+import { detectContext, runLocal, runAction, commentOnPR } from './action.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -31,15 +31,17 @@ program
   .option('--gif', 'Generate GIF (default: true)', true)
   .option('--no-optimize', 'Skip optimization step')
   .option('-t, --timeout <ms>', 'Timeout for recording (ms)', '60000')
+  .option('-W, --width <px>', 'GIF/viewport width in pixels')
+  .option('-H, --height <px>', 'GIF/viewport height in pixels')
   .action(async (scenario, opts) => {
     try {
       console.log(chalk.blue(`\n▶ Running scenario: ${scenario}`));
       
-      const result = await runAction(scenario, {
+      const result = await runLocal(scenario, {
         output: opts.output,
-        gif: opts.gif,
-        optimize: !opts.noOptimize,
         timeout: parseInt(opts.timeout, 10),
+        width: opts.width ? parseInt(opts.width, 10) : undefined,
+        height: opts.height ? parseInt(opts.height, 10) : undefined,
       });
 
       if (result.status === 'error') {
@@ -66,15 +68,17 @@ program
   .command('preview <scenario>')
   .description('Preview scenario result (unoptimized)')
   .option('-t, --timeout <ms>', 'Timeout for recording (ms)', '60000')
+  .option('-W, --width <px>', 'GIF/viewport width in pixels')
+  .option('-H, --height <px>', 'GIF/viewport height in pixels')
   .action(async (scenario, opts) => {
     try {
       console.log(chalk.blue(`\n▶ Previewing scenario: ${scenario}`));
       
-      const result = await runAction(scenario, {
+      const result = await runLocal(scenario, {
         output: './preview',
-        gif: true,
-        optimize: false,
         timeout: parseInt(opts.timeout, 10),
+        width: opts.width ? parseInt(opts.width, 10) : undefined,
+        height: opts.height ? parseInt(opts.height, 10) : undefined,
       });
 
       if (result.status === 'error') {

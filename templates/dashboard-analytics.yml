@@ -1,0 +1,95 @@
+scenario:
+  name: Multi-Page Interaction Demo
+  description: Interactive tour demonstrating multiple page interactions and form elements
+  version: 1.0
+
+  captions:
+    intro: "Interactive Web Demo"
+    navigation: "Navigating demo site"
+    elements: "Interacting with UI elements"
+    dynamic: "Testing dynamic content"
+    interaction: "Complex interactions"
+    completion: "Demo complete"
+
+  steps:
+    - type: navigate
+      url: https://the-internet.herokuapp.com/
+      caption: "Access interactive demo site"
+      timeout: 30000
+      delay: 1500
+
+    - type: screenshot
+      caption: "Demo site homepage loaded"
+      delay: 1000
+
+    - type: click
+      selector: "a[href='/add_remove_elements/']"
+      caption: "Navigate to add/remove demo"
+      delay: 600
+
+    - type: wait
+      delay: 800
+      caption: "Page loading"
+
+    - type: screenshot
+      caption: "Add/remove elements page loaded"
+      delay: 1000
+
+    - type: click
+      selector: "button[onclick='addElement()']"
+      caption: "Click add element button"
+      delay: 600
+
+    - type: wait
+      delay: 500
+      caption: "Element added"
+
+    - type: screenshot
+      caption: "New element created"
+      delay: 1000
+
+    - type: click
+      selector: "button[onclick='addElement()']"
+      caption: "Add another element"
+      delay: 600
+
+    - type: screenshot
+      caption: "Multiple elements displayed"
+      delay: 1000
+
+    - type: click
+      selector: "button.added-manually"
+      caption: "Delete first added element"
+      delay: 600
+
+    - type: wait
+      delay: 500
+      caption: "Element removed"
+
+    - type: screenshot
+      caption: "Element removal complete"
+      delay: 800
+
+    - type: navigate
+      url: https://the-internet.herokuapp.com/
+      caption: "Return to homepage"
+      delay: 1200
+
+    - type: screenshot
+      caption: "Back at homepage"
+      delay: 800
+
+  metadata:
+    tags:
+      - dashboard
+      - analytics
+      - data-visualization
+      - browser
+      - reporting
+    difficulty: intermediate
+    estimated_time: 90s
+    browser_config:
+      headless: true
+      viewport:
+        width: 1280
+        height: 720
