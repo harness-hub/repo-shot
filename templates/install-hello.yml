@@ -1,0 +1,48 @@
+scenario:
+  name: NPM Package Installation and Execution
+  description: Install a package from npm registry and verify execution
+  version: 1.0
+
+  captions:
+    intro: "Installing packages with npm"
+    installation: "Running npm install"
+    execution: "Running the installed package"
+    verification: "Capturing and verifying output"
+
+  steps:
+    - type: npm_install
+      package: chalk
+      caption: "Install chalk package from npm"
+      save: true
+      output_capture: true
+
+    - type: echo
+      command: echo "Chalk package installed successfully"
+      caption: "Confirmation message"
+      output_capture: true
+
+    - type: shell
+      command: npm list chalk
+      caption: "Verify chalk package installation"
+      output_capture: true
+
+    - type: shell
+      command: npx chalk "Installation demo completed!" --color
+      caption: "Run chalk to display colored text"
+      output_capture: true
+
+    - type: screenshot
+      filename: npm-output.png
+      caption: "Screenshot of npm execution results"
+      source: console
+
+  metadata:
+    tags:
+      - npm
+      - package-management
+      - installation
+      - demo
+    difficulty: beginner
+    estimated_time: 45s
+    requires_internet: true
+    package_manager: npm

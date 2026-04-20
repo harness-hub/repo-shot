@@ -1,0 +1,62 @@
+scenario:
+  name: Web UI Flow - User Interaction Demo
+  description: Demonstrates browser navigation, interaction, and verification
+  version: 1.0
+
+  captions:
+    intro: "Navigating a web application"
+    interaction: "User interactions with the interface"
+    verification: "Verifying content on the page"
+    conclusion: "Demonstration complete"
+
+  steps:
+    - type: navigate
+      url: https://example.com
+      caption: "Navigate to the homepage"
+      wait_for_load: true
+      timeout: 30000
+
+    - type: screenshot
+      filename: homepage.png
+      caption: "Capture the homepage"
+      full_page: true
+
+    - type: click
+      selector: "a[href='/login']"
+      caption: "Click the login link"
+      wait_for_navigation: false
+
+    - type: screenshot
+      filename: login-page.png
+      caption: "Screenshot of login page"
+      full_page: false
+      
+    - type: assert
+      assertion_type: text_visible
+      selector: "h1"
+      expected_text: "Login to Your Account"
+      caption: "Verify login page title is visible"
+      
+    - type: click
+      selector: "input[name='email']"
+      caption: "Focus on email input field"
+      wait_for_navigation: false
+
+    - type: assert
+      assertion_type: element_visible
+      selector: "button[type='submit']"
+      caption: "Verify submit button is visible"
+
+  metadata:
+    tags:
+      - web
+      - ui
+      - browser
+      - integration
+    difficulty: intermediate
+    estimated_time: 60s
+    browser_config:
+      headless: true
+      viewport:
+        width: 1280
+        height: 720

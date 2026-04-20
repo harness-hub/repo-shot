@@ -1,0 +1,41 @@
+scenario:
+  name: CLI Demo - Basic Commands
+  description: Demonstrates basic CLI commands and output
+  version: 1.0
+  
+  captions:
+    intro: "Let's explore some basic shell commands"
+    demo: "Running commands in the terminal"
+    conclusion: "These are fundamental CLI operations"
+
+  steps:
+    - type: echo
+      command: echo "Welcome to repo-shot CLI"
+      caption: "Echo a welcome message"
+      output_capture: true
+
+    - type: shell
+      command: echo "Current directory:" && pwd
+      caption: "Display current working directory"
+      output_capture: true
+
+    - type: ls
+      command: ls -la
+      caption: "List files in detailed format"
+      output_capture: true
+      
+    - type: sequence
+      caption: "Create and verify a file"
+      commands:
+        - echo "Hello from repo-shot" > demo.txt
+        - cat demo.txt
+        - rm demo.txt
+      output_capture: true
+
+  metadata:
+    tags:
+      - cli
+      - basic
+      - demo
+    difficulty: beginner
+    estimated_time: 30s

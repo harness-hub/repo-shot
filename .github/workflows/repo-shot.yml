@@ -1,0 +1,135 @@
+name: repo-shot Demonstration
+
+on:
+  push:
+    types:
+      - released
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+jobs:
+  repo-shot-demo:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install additional demo dependencies
+        run: npm install --save-dev chalk playwright
+
+      - name: Run repo-shot CLI demo
+        run: |
+          npx repo-shot action \
+            --template templates/cli-demo.yml \
+            --output artifacts/cli-demo
+        continue-on-error: true
+
+      - name: Run repo-shot web UI flow
+        run: |
+          npx repo-shot action \
+            --template templates/web-ui-flow.yml \
+            --output artifacts/web-ui-flow \
+            --headless
+        continue-on-error: true
+
+      - name: Run repo-shot npm installation demo
+        run: |
+          npx repo-shot action \
+            --template templates/install-hello.yml \
+            --output artifacts/install-demo
+        continue-on-error: true
+
+      - name: Upload demonstration artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: repo-shot-artifacts
+          path: artifacts/
+          retention-days: 30
+
+      - name: Comment on pull request with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const artifactDir = './artifacts';
+            
+            let comment = '## 📸 repo-shot Demonstration Results\n\n';
+            
+            if (fs.existsSync(artifactDir)) {
+              const files = fs.readdirSync(artifactDir);
+              if (files.length > 0) {
+                comment += '**Generated artifacts:**\n';
+                files.forEach(file => {
+                  comment += `- ${file}\n`;
+                });
+              } else {
+                comment += 'No artifacts generated in this run.\n';
+              }
+            } else {
+              comment += 'Artifacts directory not found.\n';
+            }
+            
+            comment += '\n✅ repo-shot action completed successfully!';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+        continue-on-error: true
+
+  validate-templates:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Validate YAML templates
+        run: |
+          npm install js-yaml
+          node -e "
+            const yaml = require('js-yaml');
+            const fs = require('fs');
+            
+            const templates = [
+              'templates/cli-demo.yml',
+              'templates/web-ui-flow.yml',
+              'templates/install-hello.yml'
+            ];
+            
+            templates.forEach(template => {
+              try {
+                const doc = yaml.load(fs.readFileSync(template, 'utf8'));
+                console.log('✓ ' + template + ' is valid YAML');
+              } catch (e) {
+                console.error('✗ ' + template + ' failed validation: ' + e.message);
+                process.exit(1);
+              }
+            });
+          "
