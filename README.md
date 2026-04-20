@@ -11,6 +11,7 @@
 [![node](https://img.shields.io/badge/node-%3E%3D18-brightgreen?style=flat-square)](https://nodejs.org/)
 [![playwright](https://img.shields.io/badge/powered%20by-Playwright-2EAD33?style=flat-square)](https://playwright.dev/)
 
+
 ![repo-shot terminal demo](./docs/demo-terminal.gif)
 
 > Write a YAML file. Run one command. Ship a perfect GIF to your README, PR, or docs — forever.
@@ -270,29 +271,74 @@ Generates two GIFs: `demo.gif` (terminal) and `browser-demo.gif` (browser).
 
 ### Example 7 — GitHub Actions
 
+A ready-made workflow is already included at [`.github/workflows/repo-shot.yml`](.github/workflows/repo-shot.yml). It runs on every PR open/sync and on releases.
+
 ```yaml
-# .github/workflows/demo.yml
-name: Regenerate Demo GIFs
+# .github/workflows/repo-shot.yml
+name: repo-shot Demonstration
 
 on:
   push:
-    branches: [main]
+    types: [released]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
-  demo:
+  repo-shot-demo:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
-      - run: npm install -g repo-shot
-      - run: repo-shot action --scenario scenario.yml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          cache: npm
+
+      - run: npm ci
+      - run: npm install --save-dev chalk playwright
+
+      # Record terminal demo
+      - run: npx repo-shot action --template templates/cli-demo.yml --output artifacts/cli-demo
+        continue-on-error: true
+
+      # Record browser demo
+      - run: npx repo-shot action --template templates/web-ui-flow.yml --output artifacts/web-ui-flow --headless
+        continue-on-error: true
+
+      # Upload GIFs as workflow artifacts
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: repo-shot-artifacts
+          path: artifacts/
+          retention-days: 30
+
+      # Post GIF links as a PR comment
+      - uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '## 📸 repo-shot Demo\nGIFs uploaded — see **Artifacts** tab above.'
+            });
+        continue-on-error: true
 ```
 
-Every push regenerates your GIF and posts it as a PR comment automatically.
+**Key points:**
+- `--template` path is relative to the repo root
+- `--headless` is required for browser steps in CI (no display server)
+- `permissions: pull-requests: write` is needed for the PR comment step
+- `continue-on-error: true` on each step so a failing demo doesn't block the PR
+- GIFs are available under the **Artifacts** tab of the Actions run for 30 days
+
+To use this in your own repo, copy `.github/workflows/repo-shot.yml` and adjust the `--template` paths to point at your own scenario files.
 
 ---
 
@@ -456,4 +502,3 @@ MIT — see [LICENSE](./LICENSE).
 *Stop recording demos by hand. Write YAML once, GIF forever.*
 
 </div>
-
