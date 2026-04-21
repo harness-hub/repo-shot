@@ -45,6 +45,10 @@ export function validateScenario(data) {
     throw new Error('Scenario must have a "name" field (string)');
   }
 
+  if (!data.output || typeof data.output !== 'string') {
+    throw new Error('Scenario must have an "output" field (string)');
+  }
+
   if (!Array.isArray(data.steps)) {
     throw new Error('Scenario must have a "steps" field (array)');
   }

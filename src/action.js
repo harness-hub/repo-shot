@@ -37,6 +37,13 @@ export async function detectContext() {
  * @returns {number|null}
  */
 async function extractPRNumber() {
+  // From ref: refs/pull/123/merge
+  const ref = process.env.GITHUB_REF || '';
+  const refMatch = ref.match(/refs\/pull\/(\d+)/);
+  if (refMatch) {
+    return parseInt(refMatch[1], 10);
+  }
+
   // From pull_request event
   if (process.env.GITHUB_EVENT_PATH) {
     try {
@@ -47,11 +54,8 @@ async function extractPRNumber() {
       return null;
     }
   }
-  
-  // From ref: refs/pull/123/merge
-  const ref = process.env.GITHUB_REF || '';
-  const match = ref.match(/refs\/pull\/(\d+)/);
-  return match ? parseInt(match[1], 10) : null;
+
+  return null;
 }
 
 /**
@@ -285,7 +289,7 @@ export async function runAction(scenarioPath, opts = {}) {
  * @returns {Promise<Object>} Comment response
  */
 export async function commentOnPR(token, body) {
-  const context = detectContext();
+  const context = await detectContext();
   
   if (!context.prNumber) {
     throw new Error('Not a pull request context');

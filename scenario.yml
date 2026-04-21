@@ -1,6 +1,7 @@
 scenario:
   name: Install Dependencies
   description: Installing npm packages for a Node.js project
+  output: demo.gif
   
   steps:
     - type: shell
