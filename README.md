@@ -4,7 +4,10 @@
 
 # repo-shot
 
+**Stop recording demos by hand. Write YAML once, GIF forever.**
+
 **Turn any CLI workflow or browser session into a polished GIF — automatically.**
+
 
 [![npm version](https://img.shields.io/npm/v/repo-shot?color=ff6b6b&style=flat-square)](https://www.npmjs.com/package/repo-shot)
 [![license](https://img.shields.io/github/license/your-org/repo-shot?color=4ecdc4&style=flat-square)](./LICENSE)
