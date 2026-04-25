@@ -125,12 +125,16 @@ export async function runLocal(scenarioPath, opts = {}) {
 
     const artifacts = [];
 
+    // Helper: resolve output extension based on format
+    const ext = (opts.format === 'mp4' || opts.format === 'webm') ? opts.format : 'gif';
+    const videoOpts = { width, height, ...(opts.fps ? { fps: opts.fps } : {}) };
+
     // 2a. Terminal recording
     if (terminalSteps.length > 0) {
       const recordingData = await recordTerminal(terminalSteps, `${outputDir}/recording.json`);
-      const gifPath = `${outputDir}/demo.gif`;
-      await trimVideo(recordingData.path, gifPath, { width, height });
-      artifacts.push(gifPath);
+      const outPath = `${outputDir}/demo.${ext}`;
+      await trimVideo(recordingData.path, outPath, videoOpts);
+      artifacts.push(outPath);
     }
 
     // 2b. Browser recording
@@ -150,9 +154,9 @@ export async function runLocal(scenarioPath, opts = {}) {
         `${outputDir}/browser-recording.json`,
         { viewport }
       );
-      const browserGifPath = `${outputDir}/browser-demo.gif`;
-      await trimVideo(browserRecording.path, browserGifPath, { width, height });
-      artifacts.push(browserGifPath);
+      const browserOutPath = `${outputDir}/browser-demo.${ext}`;
+      await trimVideo(browserRecording.path, browserOutPath, videoOpts);
+      artifacts.push(browserOutPath);
     }
 
     return {

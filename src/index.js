@@ -33,6 +33,7 @@ program
   .option('-t, --timeout <ms>', 'Timeout for recording (ms)', '60000')
   .option('-W, --width <px>', 'GIF/viewport width in pixels')
   .option('-H, --height <px>', 'GIF/viewport height in pixels')
+  .option('-f, --format <fmt>', 'Output format: gif, mp4, or webm', 'gif')
   .action(async (scenario, opts) => {
     try {
       console.log(chalk.blue(`\n▶ Running scenario: ${scenario}`));
@@ -42,6 +43,7 @@ program
         timeout: parseInt(opts.timeout, 10),
         width: opts.width ? parseInt(opts.width, 10) : undefined,
         height: opts.height ? parseInt(opts.height, 10) : undefined,
+        format: opts.format,
       });
 
       if (result.status === 'error') {
@@ -70,6 +72,7 @@ program
   .option('-t, --timeout <ms>', 'Timeout for recording (ms)', '60000')
   .option('-W, --width <px>', 'GIF/viewport width in pixels')
   .option('-H, --height <px>', 'GIF/viewport height in pixels')
+  .option('-f, --format <fmt>', 'Output format: gif, mp4, or webm', 'gif')
   .action(async (scenario, opts) => {
     try {
       console.log(chalk.blue(`\n▶ Previewing scenario: ${scenario}`));
@@ -79,6 +82,7 @@ program
         timeout: parseInt(opts.timeout, 10),
         width: opts.width ? parseInt(opts.width, 10) : undefined,
         height: opts.height ? parseInt(opts.height, 10) : undefined,
+        format: opts.format,
       });
 
       if (result.status === 'error') {
@@ -88,12 +92,9 @@ program
 
       console.log(chalk.green(`✓ Preview generated`));
       if (result.artifacts.length > 0) {
-        const gifArtifact = result.artifacts.find(a => a.endsWith('.gif'));
-        if (gifArtifact) {
-          console.log(chalk.gray(`\nOpening: ${gifArtifact}`));
-          // Open the result (implementation depends on platform)
-          console.log(chalk.gray(`Result: ${result.outputDir}\n`));
-        }
+        const artifact = result.artifacts[0];
+        console.log(chalk.gray(`\nResult: ${artifact}`));
+        console.log(chalk.gray(`Output: ${result.outputDir}\n`));
       }
     } catch (error) {
       console.error(chalk.red(`✗ Failed to preview: ${error.message}`));

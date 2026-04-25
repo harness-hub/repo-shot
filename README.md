@@ -380,13 +380,15 @@ repo-shot run my-shop-demo.yml
 ## CLI Reference
 
 ```
-repo-shot run <scenario>        Record and generate GIF
+repo-shot run <scenario>        Record and generate GIF/MP4/WebM
   --output <dir>                Output directory       (default: ./artifacts)
-  --width  <px>                 GIF width              (default: 1280)
-  --height <px>                 GIF height             (default: 720)
+  --format <fmt>                Output format: gif, mp4, webm (default: gif)
+  --width  <px>                 Width in pixels        (default: 1280)
+  --height <px>                 Height in pixels       (default: 720)
   --timeout <ms>                Step timeout           (default: 60000)
 
 repo-shot preview <scenario>    Quick preview, no optimization
+  --format <fmt>                Output format: gif, mp4, webm (default: gif)
 
 repo-shot template list         List built-in templates
 repo-shot template init <name>  Scaffold a new scenario file
@@ -468,7 +470,7 @@ npx playwright install chromium --with-deps
 - [x] Configurable resolution
 - [x] GitHub Actions integration
 - [x] 8 production templates
-- [ ] MP4 / WebM export
+- [x] MP4 / WebM export
 - [ ] Custom terminal themes (dark, light, Dracula, Nord)
 - [ ] Cloud upload (S3, Cloudinary, Vercel Blob)
 - [ ] VS Code extension

@@ -1,5 +1,6 @@
 import { execa } from 'execa';
 import fs from 'fs/promises';
+import os from 'os';
 import path from 'path';
 import { createCanvas, loadImage } from 'canvas';
 import GifEncoder from 'gif-encoder-2';
@@ -167,8 +168,13 @@ export async function trimVideo(inPath, outPath, opts = {}) {
     // Create output directory
     await fs.mkdir(path.dirname(outPath), { recursive: true });
 
-    // For JSON recordings (terminal or browser), render as animated GIF
+    // For JSON recordings (terminal or browser), render to GIF or video
     if (inPath.endsWith('.json')) {
+      // Delegate to exportVideo for mp4/webm output
+      if (outPath.endsWith('.mp4') || outPath.endsWith('.webm')) {
+        return exportVideo(inPath, outPath, opts);
+      }
+
       const recordingContent = await fs.readFile(inPath, 'utf-8');
       const recording = JSON.parse(recordingContent);
 
@@ -418,5 +424,138 @@ export async function optimizeOutput(inPath, outPath, opts = {}) {
     };
   } catch (err) {
     throw new Error(`Failed to optimize output: ${err.message}`);
+  }
+}
+
+/**
+ * Export a JSON recording to MP4 or WebM using canvas frame rendering + ffmpeg.
+ * @param {string} inPath - Path to JSON recording file
+ * @param {string} outPath - Output path (.mp4 or .webm)
+ * @param {Object} opts - Options { width, height, fps, crf }
+ * @returns {Promise<{path: string, size: number, format: string, frames: number}>}
+ */
+export async function exportVideo(inPath, outPath, opts = {}) {
+  if (!inPath || !outPath) {
+    throw new Error('inPath and outPath are required');
+  }
+
+  try {
+    await fs.access(inPath);
+  } catch {
+    throw new Error(`Input file not found: ${inPath}`);
+  }
+
+  const format = outPath.endsWith('.webm') ? 'webm' : 'mp4';
+  await fs.mkdir(path.dirname(outPath), { recursive: true });
+
+  // Verify ffmpeg is available
+  try {
+    await execa('ffmpeg', ['-version']);
+  } catch {
+    throw new Error(
+      'ffmpeg is required for MP4/WebM export. ' +
+      'Install it: brew install ffmpeg (macOS) or apt-get install ffmpeg (Linux)'
+    );
+  }
+
+  const recordingContent = await fs.readFile(inPath, 'utf-8');
+  const recording = JSON.parse(recordingContent);
+
+  const width = opts.width || recording.viewport?.width || DEFAULTS.width;
+  const height = opts.height || recording.viewport?.height || DEFAULTS.height;
+  const fps = opts.fps || 10;
+  const msPerFrame = 1000 / fps;
+
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'repo-shot-frames-'));
+
+  try {
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+    let frameIndex = 0;
+
+    async function writeFrame(delayMs) {
+      const count = Math.max(1, Math.round(delayMs / msPerFrame));
+      const pngBuffer = canvas.toBuffer('image/png');
+      for (let i = 0; i < count; i++) {
+        const framePath = path.join(tmpDir, `frame${String(frameIndex++).padStart(6, '0')}.png`);
+        await fs.writeFile(framePath, pngBuffer);
+      }
+    }
+
+    if (recording.type === 'browser') {
+      for (const frame of recording.frames) {
+        if (frame.type !== 'browser' || !frame.screenshot) continue;
+        const imgBuf = Buffer.from(frame.screenshot, 'base64');
+        const img = await loadImage(imgBuf);
+        ctx.drawImage(img, 0, 0, width, height);
+        await writeFrame(frame.frameDelay || 800);
+      }
+      await writeFrame(2500);
+    } else {
+      const title = recording.title || 'repo-shot';
+      let cumulativeOutput = '';
+      for (const frame of recording.frames) {
+        if (frame.type !== 'command') continue;
+        cumulativeOutput += `$ ${frame.command}\n`;
+        drawTerminalFrame(ctx, cumulativeOutput, title, width, height);
+        await writeFrame(400);
+        if (frame.output) {
+          cumulativeOutput += frame.output + '\n';
+          drawTerminalFrame(ctx, cumulativeOutput, title, width, height);
+          await writeFrame(frame.error ? 1500 : 800);
+        }
+      }
+      drawTerminalFrame(ctx, cumulativeOutput, title, width, height);
+      await writeFrame(2500);
+    }
+
+    if (frameIndex === 0) {
+      throw new Error('No frames to encode');
+    }
+
+    const ffmpegArgs = [
+      '-framerate', String(fps),
+      '-i', path.join(tmpDir, 'frame%06d.png'),
+    ];
+
+    if (format === 'webm') {
+      ffmpegArgs.push(
+        '-c:v', 'libvpx-vp9',
+        '-pix_fmt', 'yuv420p',
+        '-b:v', '0',
+        '-crf', String(opts.crf || 33),
+        '-an',
+        '-y', outPath
+      );
+    } else {
+      ffmpegArgs.push(
+        '-c:v', 'libx264',
+        '-pix_fmt', 'yuv420p',
+        '-crf', String(opts.crf || 23),
+        '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+        '-an',
+        '-movflags', '+faststart',
+        '-y', outPath
+      );
+    }
+
+    await execa('ffmpeg', ffmpegArgs);
+
+    const stats = await fs.stat(outPath);
+    return {
+      path: outPath,
+      size: stats.size,
+      format,
+      frames: frameIndex,
+    };
+  } finally {
+    // Clean up temp frame files
+    try {
+      const files = await fs.readdir(tmpDir);
+      await Promise.all(files.map(f => fs.unlink(path.join(tmpDir, f))));
+      await fs.rmdir(tmpDir);
+    } catch {
+      // Ignore cleanup errors
+    }
   }
 }
