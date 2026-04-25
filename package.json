@@ -1,9 +1,9 @@
 {
-  "name": "repo-shot",
+  "name": "readme-repo-shot",
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "repo-shot": "./src/index.js"
+    "readme-repo-shot": "./src/index.js"
   },
   "scripts": {
     "test": "vitest run",
