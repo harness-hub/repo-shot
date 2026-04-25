@@ -127,7 +127,7 @@ export async function runLocal(scenarioPath, opts = {}) {
 
     // Helper: resolve output extension based on format
     const ext = (opts.format === 'mp4' || opts.format === 'webm') ? opts.format : 'gif';
-    const videoOpts = { width, height, ...(opts.fps ? { fps: opts.fps } : {}) };
+    const videoOpts = { width, height, theme: opts.theme, ...(opts.fps ? { fps: opts.fps } : {}) };
 
     // 2a. Terminal recording
     if (terminalSteps.length > 0) {

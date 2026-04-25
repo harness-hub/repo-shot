@@ -34,6 +34,7 @@ program
   .option('-W, --width <px>', 'GIF/viewport width in pixels')
   .option('-H, --height <px>', 'GIF/viewport height in pixels')
   .option('-f, --format <fmt>', 'Output format: gif, mp4, or webm', 'gif')
+  .option('--theme <name>', 'Terminal theme: dark, light, dracula, nord', 'dark')
   .action(async (scenario, opts) => {
     try {
       console.log(chalk.blue(`\n▶ Running scenario: ${scenario}`));
@@ -44,6 +45,7 @@ program
         width: opts.width ? parseInt(opts.width, 10) : undefined,
         height: opts.height ? parseInt(opts.height, 10) : undefined,
         format: opts.format,
+        theme: opts.theme,
       });
 
       if (result.status === 'error') {
@@ -73,6 +75,7 @@ program
   .option('-W, --width <px>', 'GIF/viewport width in pixels')
   .option('-H, --height <px>', 'GIF/viewport height in pixels')
   .option('-f, --format <fmt>', 'Output format: gif, mp4, or webm', 'gif')
+  .option('--theme <name>', 'Terminal theme: dark, light, dracula, nord', 'dark')
   .action(async (scenario, opts) => {
     try {
       console.log(chalk.blue(`\n▶ Previewing scenario: ${scenario}`));
@@ -83,6 +86,7 @@ program
         width: opts.width ? parseInt(opts.width, 10) : undefined,
         height: opts.height ? parseInt(opts.height, 10) : undefined,
         format: opts.format,
+        theme: opts.theme,
       });
 
       if (result.status === 'error') {

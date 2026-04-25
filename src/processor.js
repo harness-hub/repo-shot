@@ -13,17 +13,68 @@ const HEADER_HEIGHT = 36;
 const MAX_COLS = 90;
 
 /**
+ * Built-in terminal themes.
+ * Each theme defines the colour palette used when rendering terminal frames.
+ */
+export const THEMES = {
+  dark: {
+    background: '#0d1117',
+    chrome:     '#161b22',
+    title:      '#8b949e',
+    prompt:     '#79c0ff',
+    muted:      '#8b949e',
+    text:       '#e6edf3',
+    cursor:     '#58a6ff',
+  },
+  light: {
+    background: '#ffffff',
+    chrome:     '#f0f0f0',
+    title:      '#666666',
+    prompt:     '#0550ae',
+    muted:      '#888888',
+    text:       '#1f2328',
+    cursor:     '#0969da',
+  },
+  dracula: {
+    background: '#282a36',
+    chrome:     '#21222c',
+    title:      '#6272a4',
+    prompt:     '#50fa7b',
+    muted:      '#6272a4',
+    text:       '#f8f8f2',
+    cursor:     '#bd93f9',
+  },
+  nord: {
+    background: '#2e3440',
+    chrome:     '#242831',
+    title:      '#4c566a',
+    prompt:     '#88c0d0',
+    muted:      '#4c566a',
+    text:       '#eceff4',
+    cursor:     '#81a1c1',
+  },
+};
+
+/** Resolve a theme name (string) or object to a theme palette. Falls back to 'dark'. */
+function resolveTheme(theme) {
+  if (!theme) return THEMES.dark;
+  if (typeof theme === 'object') return theme;
+  return THEMES[theme] || THEMES.dark;
+}
+
+/**
  * Draw a single terminal frame onto a canvas context.
  */
-function drawTerminalFrame(ctx, cumulativeOutput, title, width, height) {
+function drawTerminalFrame(ctx, cumulativeOutput, title, width, height, theme) {
+  const t = resolveTheme(theme);
   const maxLines = Math.floor((height - HEADER_HEIGHT - PADDING) / LINE_HEIGHT);
 
   // Background
-  ctx.fillStyle = '#0d1117';
+  ctx.fillStyle = t.background;
   ctx.fillRect(0, 0, width, height);
 
   // Window chrome strip
-  ctx.fillStyle = '#161b22';
+  ctx.fillStyle = t.chrome;
   ctx.fillRect(0, 0, width, HEADER_HEIGHT);
 
   // Traffic-light dots
@@ -36,7 +87,7 @@ function drawTerminalFrame(ctx, cumulativeOutput, title, width, height) {
   });
 
   // Title
-  ctx.fillStyle = '#8b949e';
+  ctx.fillStyle = t.title;
   ctx.font = `bold ${FONT_SIZE}px monospace`;
   ctx.textAlign = 'center';
   ctx.fillText(title || 'repo-shot', width / 2, HEADER_HEIGHT / 2 + 5);
@@ -53,11 +104,11 @@ function drawTerminalFrame(ctx, cumulativeOutput, title, width, height) {
 
     // Color prompt lines differently
     if (text.startsWith('$ ')) {
-      ctx.fillStyle = '#79c0ff';
+      ctx.fillStyle = t.prompt;
     } else if (text.startsWith('  ') || text.startsWith('\t')) {
-      ctx.fillStyle = '#8b949e';
+      ctx.fillStyle = t.muted;
     } else {
-      ctx.fillStyle = '#e6edf3';
+      ctx.fillStyle = t.text;
     }
 
     ctx.fillText(text, PADDING, y);
@@ -65,7 +116,7 @@ function drawTerminalFrame(ctx, cumulativeOutput, title, width, height) {
 
   // Blinking cursor on last line
   const lastLineY = HEADER_HEIGHT + PADDING + visibleLines.length * LINE_HEIGHT - 4;
-  ctx.fillStyle = '#58a6ff';
+  ctx.fillStyle = t.cursor;
   ctx.fillRect(PADDING, lastLineY, 8, 2);
 }
 
@@ -105,7 +156,7 @@ async function createGifFromBrowserRecording(recording, width, height) {
 /**
  * Render terminal recording frames as an animated GIF.
  */
-async function createGifFromRecording(recording, width, height) {
+async function createGifFromRecording(recording, width, height, theme) {
   const encoder = new GifEncoder(width, height, 'neuquant', true);
   encoder.setRepeat(0);
   encoder.setQuality(10);
@@ -122,21 +173,21 @@ async function createGifFromRecording(recording, width, height) {
 
     // Frame: show prompt + command
     cumulativeOutput += `$ ${frame.command}\n`;
-    drawTerminalFrame(ctx, cumulativeOutput, title, width, height);
+    drawTerminalFrame(ctx, cumulativeOutput, title, width, height, theme);
     encoder.setDelay(400);
     encoder.addFrame(ctx.getImageData(0, 0, width, height).data);
 
     // Frame: show command output
     if (frame.output) {
       cumulativeOutput += frame.output + '\n';
-      drawTerminalFrame(ctx, cumulativeOutput, title, width, height);
+      drawTerminalFrame(ctx, cumulativeOutput, title, width, height, theme);
       encoder.setDelay(frame.error ? 1500 : 800);
       encoder.addFrame(ctx.getImageData(0, 0, width, height).data);
     }
   }
 
   // Final hold frame
-  drawTerminalFrame(ctx, cumulativeOutput, title, width, height);
+  drawTerminalFrame(ctx, cumulativeOutput, title, width, height, theme);
   encoder.setDelay(2500);
   encoder.addFrame(ctx.getImageData(0, 0, width, height).data);
 
@@ -183,7 +234,7 @@ export async function trimVideo(inPath, outPath, opts = {}) {
 
       const gifData = recording.type === 'browser'
         ? await createGifFromBrowserRecording(recording, width, height)
-        : await createGifFromRecording(recording, width, height);
+        : await createGifFromRecording(recording, width, height, opts.theme);
 
       await fs.writeFile(outPath, gifData);
 
@@ -497,15 +548,15 @@ export async function exportVideo(inPath, outPath, opts = {}) {
       for (const frame of recording.frames) {
         if (frame.type !== 'command') continue;
         cumulativeOutput += `$ ${frame.command}\n`;
-        drawTerminalFrame(ctx, cumulativeOutput, title, width, height);
+        drawTerminalFrame(ctx, cumulativeOutput, title, width, height, opts.theme);
         await writeFrame(400);
         if (frame.output) {
           cumulativeOutput += frame.output + '\n';
-          drawTerminalFrame(ctx, cumulativeOutput, title, width, height);
+          drawTerminalFrame(ctx, cumulativeOutput, title, width, height, opts.theme);
           await writeFrame(frame.error ? 1500 : 800);
         }
       }
-      drawTerminalFrame(ctx, cumulativeOutput, title, width, height);
+      drawTerminalFrame(ctx, cumulativeOutput, title, width, height, opts.theme);
       await writeFrame(2500);
     }
 

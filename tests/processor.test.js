@@ -26,7 +26,7 @@ vi.mock('fs/promises', () => ({
   }
 }));
 
-import { trimVideo, addCaptions, convertToGif, optimizeOutput, exportVideo } from '../src/processor.js';
+import { trimVideo, addCaptions, convertToGif, optimizeOutput, exportVideo, THEMES } from '../src/processor.js';
 import { execa } from 'execa';
 import fs from 'fs/promises';
 
@@ -222,6 +222,67 @@ describe('processor.js', () => {
         viewport: { width: 1280, height: 720 },
       }));
       const result = await exportVideo(`${tempDir}/in.json`, `${tempDir}/out.mp4`);
+      expect(result).toHaveProperty('format', 'mp4');
+    });
+  });
+
+  describe('THEMES', () => {
+    it('should export all four themes', () => {
+      expect(THEMES).toHaveProperty('dark');
+      expect(THEMES).toHaveProperty('light');
+      expect(THEMES).toHaveProperty('dracula');
+      expect(THEMES).toHaveProperty('nord');
+    });
+
+    it('each theme should have all required colour keys', () => {
+      const keys = ['background', 'chrome', 'title', 'prompt', 'muted', 'text', 'cursor'];
+      for (const [name, theme] of Object.entries(THEMES)) {
+        keys.forEach(k => {
+          expect(theme, `${name}.${k}`).toHaveProperty(k);
+          expect(typeof theme[k]).toBe('string');
+        });
+      }
+    });
+
+    it('trimVideo should pass theme to GIF renderer without error', async () => {
+      // Terminal recording with nord theme
+      vi.mocked(fs.readFile).mockResolvedValueOnce(JSON.stringify({
+        type: 'terminal',
+        title: 'nord-test',
+        frames: [{ type: 'command', command: 'echo hi', output: 'hi' }],
+        duration: 1,
+      }));
+      await expect(
+        trimVideo(`${tempDir}/in.json`, `${tempDir}/out.gif`, { theme: 'nord' })
+      ).resolves.toHaveProperty('path');
+    });
+
+    it('trimVideo should pass theme to GIF renderer for dracula', async () => {
+      vi.mocked(fs.readFile).mockResolvedValueOnce(JSON.stringify({
+        type: 'terminal',
+        title: 'dracula-test',
+        frames: [{ type: 'command', command: 'echo hi', output: 'hi' }],
+        duration: 1,
+      }));
+      await expect(
+        trimVideo(`${tempDir}/in.json`, `${tempDir}/out.gif`, { theme: 'dracula' })
+      ).resolves.toHaveProperty('path');
+    });
+
+    it('trimVideo should fall back to dark theme for unknown theme name', async () => {
+      vi.mocked(fs.readFile).mockResolvedValueOnce(JSON.stringify({
+        type: 'terminal',
+        title: 'unknown-theme-test',
+        frames: [{ type: 'command', command: 'ls', output: 'file.txt' }],
+        duration: 1,
+      }));
+      await expect(
+        trimVideo(`${tempDir}/in.json`, `${tempDir}/out.gif`, { theme: 'nonexistent' })
+      ).resolves.toHaveProperty('path');
+    });
+
+    it('exportVideo should accept theme option', async () => {
+      const result = await exportVideo(`${tempDir}/in.json`, `${tempDir}/out.mp4`, { theme: 'light' });
       expect(result).toHaveProperty('format', 'mp4');
     });
   });

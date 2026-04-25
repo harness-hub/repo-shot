@@ -383,12 +383,14 @@ repo-shot run my-shop-demo.yml
 repo-shot run <scenario>        Record and generate GIF/MP4/WebM
   --output <dir>                Output directory       (default: ./artifacts)
   --format <fmt>                Output format: gif, mp4, webm (default: gif)
+  --theme  <name>               Terminal theme: dark, light, dracula, nord (default: dark)
   --width  <px>                 Width in pixels        (default: 1280)
   --height <px>                 Height in pixels       (default: 720)
   --timeout <ms>                Step timeout           (default: 60000)
 
 repo-shot preview <scenario>    Quick preview, no optimization
   --format <fmt>                Output format: gif, mp4, webm (default: gif)
+  --theme  <name>               Terminal theme: dark, light, dracula, nord (default: dark)
 
 repo-shot template list         List built-in templates
 repo-shot template init <name>  Scaffold a new scenario file
@@ -471,7 +473,7 @@ npx playwright install chromium --with-deps
 - [x] GitHub Actions integration
 - [x] 8 production templates
 - [x] MP4 / WebM export
-- [ ] Custom terminal themes (dark, light, Dracula, Nord)
+- [x] Custom terminal themes (dark, light, Dracula, Nord)
 - [ ] Cloud upload (S3, Cloudinary, Vercel Blob)
 - [ ] VS Code extension
 - [ ] Batch scenario runner
