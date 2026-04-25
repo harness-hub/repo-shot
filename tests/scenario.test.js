@@ -52,12 +52,12 @@ describe('scenario.js', () => {
       expect(() => validateScenario({ name: 123, output: 'out.png', steps: [{ type: 'command' }] })).toThrow('Scenario must have a "name" field');
     });
 
-    it('should throw when output is missing', () => {
-      expect(() => validateScenario({ name: 'Test', steps: [{ type: 'command' }] })).toThrow('Scenario must have an "output" field');
+    it('should pass when output is missing', () => {
+      expect(() => validateScenario({ name: 'Test', steps: [{ type: 'command', command: 'echo hello' }] })).not.toThrow();
     });
 
     it('should throw when output is not a string', () => {
-      expect(() => validateScenario({ name: 'Test', output: 123, steps: [{ type: 'command' }] })).toThrow('Scenario must have an "output" field');
+      expect(() => validateScenario({ name: 'Test', output: 123, steps: [{ type: 'command', command: 'echo hello' }] })).toThrow('Scenario "output" field must be a string');
     });
 
     it('should throw when steps is not an array', () => {
@@ -73,7 +73,7 @@ describe('scenario.js', () => {
     });
 
     it('should throw when step has neither type nor command', () => {
-      expect(() => validateScenario({ name: 'Test', output: 'out.png', steps: [{ delay: 100 }] })).toThrow('Step 0 must have either "type" or "command" field');
+      expect(() => validateScenario({ name: 'Test', output: 'out.png', steps: [{ delay: 100 }] })).toThrow('Step 0 must have "type", "command", or "commands" field');
     });
 
     it('should throw when step type is not a string', () => {
@@ -82,6 +82,22 @@ describe('scenario.js', () => {
 
     it('should throw when step command is not a string', () => {
       expect(() => validateScenario({ name: 'Test', output: 'out.png', steps: [{ command: 123 }] })).toThrow('Step 0: "command" must be a string');
+    });
+
+    it('should throw for unsupported step type', () => {
+      expect(() => validateScenario({ name: 'Test', steps: [{ type: 'navigation', url: 'https://example.com' }] })).toThrow('unsupported type "navigation"');
+    });
+
+    it('should throw when navigate step is missing url', () => {
+      expect(() => validateScenario({ name: 'Test', steps: [{ type: 'navigate' }] })).toThrow('navigate steps must include "url"');
+    });
+
+    it('should throw when assert step is missing selector', () => {
+      expect(() => validateScenario({ name: 'Test', steps: [{ type: 'assert' }] })).toThrow('assert steps must include "selector"');
+    });
+
+    it('should throw when sequence step is missing commands', () => {
+      expect(() => validateScenario({ name: 'Test', steps: [{ type: 'sequence' }] })).toThrow('sequence steps must include "commands"');
     });
 
     it('should pass with valid data', () => {
@@ -157,10 +173,10 @@ steps:
 
     it('should validate loaded data', () => {
       const jsonPath = path.join(tempDir, 'invalid.json');
-      fs.writeFileSync(jsonPath, JSON.stringify({ name: 'Missing output' }));
+      fs.writeFileSync(jsonPath, JSON.stringify({ name: 'Missing steps' }));
       fixtures.push(jsonPath);
 
-      expect(() => loadScenario(jsonPath)).toThrow('Scenario must have an "output" field');
+      expect(() => loadScenario(jsonPath)).toThrow('Scenario must have a "steps" field');
     });
   });
 });

@@ -1,6 +1,5 @@
 import { execa } from 'execa';
 import { chromium } from 'playwright';
-import { spawn } from 'node-pty';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -39,10 +38,13 @@ export async function recordTerminal(steps, outPath) {
       
       try {
         // Execute command using execa
-        const result = await execa('bash', ['-c', step.cmd]);
+        const result = await execa('bash', ['-c', step.cmd], {
+          all: true,
+          reject: true,
+        });
 
         const timestamp = Date.now() - startTime;
-        const cmdOutput = result.stdout || result.stderr || '';
+        const cmdOutput = result.all || [result.stdout, result.stderr].filter(Boolean).join('\n');
         
         output += `$ ${step.cmd}\n${cmdOutput}\n`;
         
@@ -50,13 +52,18 @@ export async function recordTerminal(steps, outPath) {
           timestamp,
           command: step.cmd,
           output: cmdOutput,
+          exitCode: result.exitCode,
+          caption: step.caption || '',
+          stepIndex: step.stepIndex ?? frames.length,
           duration: Date.now() - cmdStartTime,
           type: 'command',
         });
       } catch (cmdErr) {
         // Still capture output even if command fails
         const timestamp = Date.now() - startTime;
-        const cmdOutput = cmdErr.stdout || cmdErr.stderr || cmdErr.message;
+        const cmdOutput = cmdErr.all ||
+          [cmdErr.stdout, cmdErr.stderr].filter(Boolean).join('\n') ||
+          cmdErr.message;
         
         output += `$ ${step.cmd}\n${cmdOutput}\n`;
         
@@ -65,6 +72,10 @@ export async function recordTerminal(steps, outPath) {
           command: step.cmd,
           output: cmdOutput,
           error: true,
+          allowFailure: Boolean(step.allowFailure),
+          exitCode: cmdErr.exitCode ?? 1,
+          caption: step.caption || '',
+          stepIndex: step.stepIndex ?? frames.length,
           duration: Date.now() - cmdStartTime,
           type: 'command',
         });
@@ -130,9 +141,11 @@ export async function recordBrowser(steps, outPath, opts = {}) {
         await page.fill(step.target, step.text || '', { timeout: step.timeout || 60000 });
       } else if (step.action === 'wait') {
         await page.waitForTimeout(delay);
-        continue;
+      } else if (step.action === 'assert') {
+        await page.waitForSelector(step.target, { timeout: step.timeout || 60000 });
+      } else if (step.action !== 'screenshot') {
+        throw new Error(`Unsupported browser action: ${step.action}`);
       }
-      // 'screenshot' and 'assert' fall through — just capture the current state
 
       await new Promise((res) => setTimeout(res, delay));
 

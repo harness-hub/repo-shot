@@ -11,6 +11,7 @@ const LINE_HEIGHT = 18;
 const PADDING = 14;
 const HEADER_HEIGHT = 36;
 const MAX_COLS = 90;
+const CAPTION_FONT_SIZE = 22;
 
 /**
  * Built-in terminal themes.
@@ -65,9 +66,62 @@ function resolveTheme(theme) {
 /**
  * Draw a single terminal frame onto a canvas context.
  */
-function drawTerminalFrame(ctx, cumulativeOutput, title, width, height, theme) {
+function wrapText(ctx, text, maxWidth) {
+  if (!text) return [];
+
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = '';
+
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      line = candidate;
+    } else {
+      if (line) lines.push(line);
+      line = word;
+    }
+  }
+
+  if (line) lines.push(line);
+  return lines.slice(0, 2);
+}
+
+function drawCaption(ctx, caption, width, height) {
+  if (!caption) return;
+
+  ctx.save();
+  ctx.font = `bold ${CAPTION_FONT_SIZE}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const maxWidth = width - PADDING * 4;
+  const lines = wrapText(ctx, caption, maxWidth);
+  if (lines.length === 0) {
+    ctx.restore();
+    return;
+  }
+
+  const lineHeight = CAPTION_FONT_SIZE + 8;
+  const boxHeight = lines.length * lineHeight + PADDING * 2;
+  const boxY = height - boxHeight - PADDING;
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
+  ctx.fillRect(PADDING, boxY, width - PADDING * 2, boxHeight);
+
+  ctx.fillStyle = '#ffffff';
+  lines.forEach((line, index) => {
+    const y = boxY + PADDING + lineHeight / 2 + index * lineHeight;
+    ctx.fillText(line, width / 2, y);
+  });
+
+  ctx.restore();
+}
+
+function drawTerminalFrame(ctx, cumulativeOutput, title, width, height, theme, caption = '') {
   const t = resolveTheme(theme);
-  const maxLines = Math.floor((height - HEADER_HEIGHT - PADDING) / LINE_HEIGHT);
+  const captionReserve = caption ? CAPTION_FONT_SIZE * 3 + PADDING * 3 : 0;
+  const maxLines = Math.max(1, Math.floor((height - HEADER_HEIGHT - PADDING - captionReserve) / LINE_HEIGHT));
 
   // Background
   ctx.fillStyle = t.background;
@@ -118,6 +172,8 @@ function drawTerminalFrame(ctx, cumulativeOutput, title, width, height, theme) {
   const lastLineY = HEADER_HEIGHT + PADDING + visibleLines.length * LINE_HEIGHT - 4;
   ctx.fillStyle = t.cursor;
   ctx.fillRect(PADDING, lastLineY, 8, 2);
+
+  drawCaption(ctx, caption, width, height);
 }
 
 /**
@@ -140,6 +196,7 @@ async function createGifFromBrowserRecording(recording, width, height) {
 
     // Draw screenshot scaled to target dimensions
     ctx.drawImage(img, 0, 0, width, height);
+    drawCaption(ctx, frame.caption, width, height);
 
     encoder.setDelay(frame.frameDelay || 800);
     encoder.addFrame(ctx.getImageData(0, 0, width, height).data);
@@ -167,27 +224,29 @@ async function createGifFromRecording(recording, width, height, theme) {
 
   const title = recording.title || 'repo-shot';
   let cumulativeOutput = '';
+  let lastCaption = '';
 
   for (const frame of recording.frames) {
     if (frame.type !== 'command') continue;
+    lastCaption = frame.caption || lastCaption;
 
     // Frame: show prompt + command
     cumulativeOutput += `$ ${frame.command}\n`;
-    drawTerminalFrame(ctx, cumulativeOutput, title, width, height, theme);
+    drawTerminalFrame(ctx, cumulativeOutput, title, width, height, theme, lastCaption);
     encoder.setDelay(400);
     encoder.addFrame(ctx.getImageData(0, 0, width, height).data);
 
     // Frame: show command output
     if (frame.output) {
       cumulativeOutput += frame.output + '\n';
-      drawTerminalFrame(ctx, cumulativeOutput, title, width, height, theme);
+      drawTerminalFrame(ctx, cumulativeOutput, title, width, height, theme, lastCaption);
       encoder.setDelay(frame.error ? 1500 : 800);
       encoder.addFrame(ctx.getImageData(0, 0, width, height).data);
     }
   }
 
   // Final hold frame
-  drawTerminalFrame(ctx, cumulativeOutput, title, width, height, theme);
+  drawTerminalFrame(ctx, cumulativeOutput, title, width, height, theme, lastCaption);
   encoder.setDelay(2500);
   encoder.addFrame(ctx.getImageData(0, 0, width, height).data);
 
@@ -539,24 +598,27 @@ export async function exportVideo(inPath, outPath, opts = {}) {
         const imgBuf = Buffer.from(frame.screenshot, 'base64');
         const img = await loadImage(imgBuf);
         ctx.drawImage(img, 0, 0, width, height);
+        drawCaption(ctx, frame.caption, width, height);
         await writeFrame(frame.frameDelay || 800);
       }
       await writeFrame(2500);
     } else {
       const title = recording.title || 'repo-shot';
       let cumulativeOutput = '';
+      let lastCaption = '';
       for (const frame of recording.frames) {
         if (frame.type !== 'command') continue;
+        lastCaption = frame.caption || lastCaption;
         cumulativeOutput += `$ ${frame.command}\n`;
-        drawTerminalFrame(ctx, cumulativeOutput, title, width, height, opts.theme);
+        drawTerminalFrame(ctx, cumulativeOutput, title, width, height, opts.theme, lastCaption);
         await writeFrame(400);
         if (frame.output) {
           cumulativeOutput += frame.output + '\n';
-          drawTerminalFrame(ctx, cumulativeOutput, title, width, height, opts.theme);
+          drawTerminalFrame(ctx, cumulativeOutput, title, width, height, opts.theme, lastCaption);
           await writeFrame(frame.error ? 1500 : 800);
         }
       }
-      drawTerminalFrame(ctx, cumulativeOutput, title, width, height, opts.theme);
+      drawTerminalFrame(ctx, cumulativeOutput, title, width, height, opts.theme, lastCaption);
       await writeFrame(2500);
     }
 

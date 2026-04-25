@@ -6,6 +6,28 @@
  */
 
 import fs from 'fs/promises';
+import path from 'path';
+import { pathToFileURL } from 'url';
+
+function safeArtifactName(value) {
+  return String(value || '')
+    .trim()
+    .replace(/\.(gif|mp4|webm)$/i, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'demo';
+}
+
+function artifactPath(outputDir, name, ext) {
+  return path.join(outputDir, `${safeArtifactName(name)}.${ext}`);
+}
+
+function resolveNavigationTarget(url, scenarioPath) {
+  if (/^(https?:|file:|data:|about:)/i.test(url)) {
+    return url;
+  }
+
+  return pathToFileURL(path.resolve(path.dirname(scenarioPath), url)).href;
+}
 
 /**
  * Detect GitHub Actions context from environment variables
@@ -99,7 +121,7 @@ export async function runLocal(scenarioPath, opts = {}) {
     const scenario = await loadScenario(scenarioPath);
 
     // Resolve viewport / resolution
-    const scenarioViewport = scenario.metadata?.browser_config?.viewport;
+    const scenarioViewport = scenario.metadata?.browser_config?.viewport || scenario.browser_config?.viewport;
     const width  = opts.width  || scenarioViewport?.width  || 1280;
     const height = opts.height || scenarioViewport?.height || 720;
     const viewport = { width, height };
@@ -108,10 +130,23 @@ export async function runLocal(scenarioPath, opts = {}) {
     const BROWSER_TYPES = new Set(['navigate', 'click', 'type', 'fill', 'screenshot', 'assert', 'wait']);
     const browserSteps = scenario.steps.filter(s => BROWSER_TYPES.has(s.type));
     const terminalSteps = scenario.steps
-      .filter(s => s.command || s.commands)
+      .map((step, index) => ({ ...step, index }))
+      .filter(s => s.command || s.commands || s.type === 'shell' || s.type === 'command' || s.type === 'sequence')
       .map(s => Array.isArray(s.commands)
-        ? { cmd: s.commands.join(' && '), delay: s.delay || 1000 }
-        : { cmd: s.command, delay: s.delay || 1000 }
+        ? {
+            cmd: s.commands.join(' && '),
+            delay: s.delay || 1000,
+            allowFailure: Boolean(s.allow_failure || s.allowFailure),
+            caption: s.caption || '',
+            stepIndex: s.index,
+          }
+        : {
+            cmd: s.command,
+            delay: s.delay || 1000,
+            allowFailure: Boolean(s.allow_failure || s.allowFailure),
+            caption: s.caption || '',
+            stepIndex: s.index,
+          }
       );
 
     if (terminalSteps.length === 0 && browserSteps.length === 0) {
@@ -132,7 +167,24 @@ export async function runLocal(scenarioPath, opts = {}) {
     // 2a. Terminal recording
     if (terminalSteps.length > 0) {
       const recordingData = await recordTerminal(terminalSteps, `${outputDir}/recording.json`);
-      const outPath = `${outputDir}/demo.${ext}`;
+      const failedFrame = recordingData.frames.find((frame) => frame.error && !frame.allowFailure);
+      if (failedFrame) {
+        const label = failedFrame.caption
+          ? ` (${failedFrame.caption})`
+          : '';
+        return {
+          status: 'error',
+          message: `Step ${failedFrame.stepIndex + 1}${label} failed with exit code ${failedFrame.exitCode}: ${failedFrame.command}`,
+          artifacts,
+          outputDir,
+        };
+      }
+
+      const defaultTerminalName = opts.name ||
+        (scenario.output && terminalSteps.length > 0 && browserSteps.length === 0
+        ? scenario.output
+        : 'demo');
+      const outPath = artifactPath(outputDir, defaultTerminalName, ext);
       await trimVideo(recordingData.path, outPath, videoOpts);
       artifacts.push(outPath);
     }
@@ -142,7 +194,7 @@ export async function runLocal(scenarioPath, opts = {}) {
       // Map YAML step types to recorder action format
       const recorderSteps = browserSteps.map(s => ({
         action: s.type === 'navigate' ? 'goto' : s.type,
-        target: s.url || s.selector || null,
+        target: s.type === 'navigate' ? resolveNavigationTarget(s.url, scenarioPath) : s.selector || null,
         text: s.text || s.value || null,
         caption: s.caption || '',
         delay: s.delay || 800,
@@ -154,7 +206,7 @@ export async function runLocal(scenarioPath, opts = {}) {
         `${outputDir}/browser-recording.json`,
         { viewport }
       );
-      const browserOutPath = `${outputDir}/browser-demo.${ext}`;
+      const browserOutPath = artifactPath(outputDir, opts.name ? `${opts.name}-browser` : 'browser-demo', ext);
       await trimVideo(browserRecording.path, browserOutPath, videoOpts);
       artifacts.push(browserOutPath);
     }
@@ -195,73 +247,25 @@ export async function runAction(scenarioPath, opts = {}) {
   }
 
   try {
-    // Import pipeline modules
-    const { loadScenario } = await import('./scenario.js').catch(() => ({
-      loadScenario: null,
-    }));
-    
-    const { recordTerminal } = await import('./recorder.js').catch(() => ({
-      recordTerminal: null,
-    }));
-    
-    const { trimVideo } = await import('./processor.js').catch(() => ({
-      trimVideo: null,
-    }));
-
-    if (!loadScenario || !recordTerminal || !trimVideo) {
-      return {
-        status: 'error',
-        message: 'Pipeline modules not available',
-        artifacts: [],
-      };
-    }
-
-    const outputDir = opts.output || `${context.workspace}/artifacts`;
-    
-    // Ensure output directory exists
-    await fs.mkdir(outputDir, { recursive: true });
-    
-    // 1. Load scenario
-    const scenario = await loadScenario(scenarioPath);
-    
-    // 2. Transform scenario steps to recorder format
-    const commands = scenario.steps
-      .filter(step => step.command || step.commands)
-      .map(step => {
-        // Handle sequence steps with multiple commands
-        if (Array.isArray(step.commands)) {
-          return { cmd: step.commands.join(' && '), delay: step.delay || 1000 };
-        }
-        // Handle single command steps
-        return { cmd: step.command, delay: step.delay || 1000 };
-      });
-    
-    if (commands.length === 0) {
-      return {
-        status: 'error',
-        message: 'No executable commands found in scenario steps',
-        artifacts: [],
-      };
-    }
-    
-    // 3. Record session
-    const recordingData = await recordTerminal(commands, `${outputDir}/recording.json`);
-    
-    // 4. Process recording (convert to GIF)
-    const gifPath = `${outputDir}/demo.gif`;
-    const result = await trimVideo(recordingData.path, gifPath, {
-      silenceThreshold: opts.silenceThreshold || -40,
-      silenceDuration: opts.silenceDuration || 0.5,
+    const result = await runLocal(scenarioPath, {
+      output: opts.output || `${context.workspace}/artifacts`,
+      timeout: opts.timeout,
+      width: opts.width,
+      height: opts.height,
+      format: opts.format || 'gif',
+      theme: opts.theme,
     });
 
-    const artifacts = [gifPath];
+    if (result.status === 'error') {
+      return result;
+    }
 
     // 5. Set GitHub Actions step outputs
-    if (artifacts.length > 0) {
-      await setOutput('artifacts', artifacts.join(','));
-      await setOutput('artifact-count', String(artifacts.length));
+    if (result.artifacts.length > 0) {
+      await setOutput('artifacts', result.artifacts.join(','));
+      await setOutput('artifact-count', String(result.artifacts.length));
       
-      const gifArtifact = artifacts.find(a => a.endsWith('.gif'));
+      const gifArtifact = result.artifacts.find(a => a.endsWith('.gif'));
       if (gifArtifact) {
         await setOutput('gif', gifArtifact);
       }
@@ -269,9 +273,9 @@ export async function runAction(scenarioPath, opts = {}) {
 
     return {
       status: 'success',
-      artifacts,
+      artifacts: result.artifacts,
       context,
-      outputDir,
+      outputDir: result.outputDir,
     };
   } catch (error) {
     // Log error to action output

@@ -1,50 +1,24 @@
 import fs from 'fs';
 import path from 'path';
-import yaml from 'js-yaml';
+import { fileURLToPath } from 'url';
 
-const TEMPLATES = {
-  'cli-demo': `name: CLI Demo
-output: cli-output.png
-steps:
-  - type: command
-    command: echo "Starting CLI demonstration"
-    delay: 500
-  - type: command
-    command: ls -la
-    delay: 1000
-  - type: command
-    command: echo "Demo complete!"
-    delay: 500`,
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const TEMPLATE_DIR = path.resolve(__dirname, '../templates');
 
-  'web-ui-flow': `name: Web UI Flow
-output: web-ui-flow.png
-steps:
-  - type: navigation
-    command: goto https://example.com
-    delay: 2000
-  - type: interaction
-    command: click button[type="submit"]
-    delay: 1000
-  - type: screenshot
-    command: full
-    delay: 500`,
-
-  'install-hello': `name: Install Hello World
-output: install-demo.png
-steps:
-  - type: command
-    command: npm init -y
-    delay: 1000
-  - type: command
-    command: npm install express
-    delay: 2000
-  - type: command
-    command: echo "Installation complete!"
-    delay: 500`
-};
+function templateFileName(name) {
+  return name.endsWith('.yml') || name.endsWith('.yaml') ? name : `${name}.yml`;
+}
 
 export function listTemplates() {
-  return Object.keys(TEMPLATES);
+  if (!fs.existsSync(TEMPLATE_DIR)) {
+    return [];
+  }
+
+  return fs.readdirSync(TEMPLATE_DIR)
+    .filter((file) => file.endsWith('.yml') || file.endsWith('.yaml'))
+    .map((file) => path.basename(file, path.extname(file)))
+    .sort();
 }
 
 export function getTemplate(name) {
@@ -52,16 +26,16 @@ export function getTemplate(name) {
     throw new Error('Template name must be a non-empty string');
   }
 
-  const template = TEMPLATES[name];
-  if (!template) {
+  const templatePath = path.join(TEMPLATE_DIR, templateFileName(name));
+  if (!fs.existsSync(templatePath)) {
     const available = listTemplates().join(', ');
     throw new Error(`Template "${name}" not found. Available templates: ${available}`);
   }
 
-  return template;
+  return fs.readFileSync(templatePath, 'utf-8');
 }
 
-export function scaffoldTemplate(name, dest) {
+export function scaffoldTemplate(name, dest, opts = {}) {
   if (!name || typeof name !== 'string') {
     throw new Error('Template name must be a non-empty string');
   }
@@ -74,6 +48,10 @@ export function scaffoldTemplate(name, dest) {
   const destDir = path.dirname(dest);
 
   try {
+    if (fs.existsSync(dest) && !opts.force) {
+      throw new Error(`Destination already exists: ${dest}. Use --force to overwrite.`);
+    }
+
     if (!fs.existsSync(destDir)) {
       fs.mkdirSync(destDir, { recursive: true });
     }

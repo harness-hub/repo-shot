@@ -1,0 +1,71 @@
+name: repo-shot
+description: Generate README-ready demo artifacts from a repo-shot scenario.
+author: repo-shot
+
+inputs:
+  scenario:
+    description: Path to the scenario YAML or JSON file.
+    required: false
+    default: scenario.yml
+  output:
+    description: Directory for generated artifacts.
+    required: false
+    default: artifacts
+  format:
+    description: Output format: gif, mp4, or webm.
+    required: false
+    default: gif
+  name:
+    description: Base name for generated artifact files.
+    required: false
+    default: demo
+  width:
+    description: Optional output width in pixels.
+    required: false
+    default: ''
+  height:
+    description: Optional output height in pixels.
+    required: false
+    default: ''
+  theme:
+    description: Terminal theme: dark, light, dracula, or nord.
+    required: false
+    default: dark
+  install-browser:
+    description: Install Playwright Chromium before running.
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - run: npm install -g readme-repo-shot
+      shell: bash
+
+    - if: ${{ inputs.install-browser == 'true' }}
+      run: npx playwright install chromium --with-deps
+      shell: bash
+
+    - run: |
+        args=(
+          run "${{ inputs.scenario }}"
+          --output "${{ inputs.output }}"
+          --format "${{ inputs.format }}"
+          --name "${{ inputs.name }}"
+          --theme "${{ inputs.theme }}"
+        )
+
+        if [ -n "${{ inputs.width }}" ]; then
+          args+=(--width "${{ inputs.width }}")
+        fi
+
+        if [ -n "${{ inputs.height }}" ]; then
+          args+=(--height "${{ inputs.height }}")
+        fi
+
+        repo-shot "${args[@]}"
+      shell: bash

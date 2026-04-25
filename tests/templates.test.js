@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { listTemplates, getTemplate, scaffoldTemplate } from '../src/templates.js';
+import { loadScenario } from '../src/scenario.js';
 
 describe('templates.js', () => {
   let tempDir;
@@ -55,9 +56,19 @@ describe('templates.js', () => {
       expect(templates).toContain('install-hello');
     });
 
-    it('should return exactly 3 templates', () => {
+    it('should contain the full built-in template library', () => {
       const templates = listTemplates();
-      expect(templates.length).toBe(3);
+      expect(templates).toEqual([
+        'api-testing',
+        'cli-demo',
+        'dashboard-analytics',
+        'ecommerce-checkout',
+        'form-submission',
+        'install-hello',
+        'local-browser',
+        'mobile-responsive',
+        'web-ui-flow',
+      ]);
     });
   });
 
@@ -93,11 +104,11 @@ describe('templates.js', () => {
     it('should return YAML string for install-hello', () => {
       const template = getTemplate('install-hello');
       expect(typeof template).toBe('string');
-      expect(template).toContain('name: Install Hello World');
+      expect(template).toContain('name: Simple Project Setup Demo');
     });
 
     it('should throw with available templates message when unknown template', () => {
-      expect(() => getTemplate('unknown-template')).toThrow('Template "unknown-template" not found. Available templates: cli-demo, web-ui-flow, install-hello');
+      expect(() => getTemplate('unknown-template')).toThrow('Template "unknown-template" not found. Available templates: api-testing, cli-demo');
     });
   });
 
@@ -141,7 +152,7 @@ describe('templates.js', () => {
 
       const content = fs.readFileSync(destPath, 'utf-8');
       expect(content).toContain('name: CLI Demo');
-      expect(content).toContain('output: cli-output.png');
+      expect(content).toContain('scenario:');
     });
 
     it('should write web-ui-flow template correctly', () => {
@@ -151,7 +162,7 @@ describe('templates.js', () => {
 
       const content = fs.readFileSync(destPath, 'utf-8');
       expect(content).toContain('name: Web UI Flow');
-      expect(content).toContain('https://example.com');
+      expect(content).toContain('https://the-internet.herokuapp.com/');
     });
 
     it('should write install-hello template correctly', () => {
@@ -160,8 +171,8 @@ describe('templates.js', () => {
       fixtures.push(destPath);
 
       const content = fs.readFileSync(destPath, 'utf-8');
-      expect(content).toContain('name: Install Hello World');
-      expect(content).toContain('npm init -y');
+      expect(content).toContain('name: Simple Project Setup Demo');
+      expect(content).toContain('git --version');
     });
 
     it('should handle relative paths', () => {
@@ -176,5 +187,35 @@ describe('templates.js', () => {
         process.chdir(originalCwd);
       }
     });
+
+    it('should not overwrite existing files unless forced', () => {
+      const destPath = path.join(tempDir, 'scenario.yaml');
+      fs.writeFileSync(destPath, 'existing');
+      fixtures.push(destPath);
+
+      expect(() => scaffoldTemplate('cli-demo', destPath)).toThrow('Destination already exists');
+
+      scaffoldTemplate('cli-demo', destPath, { force: true });
+      expect(fs.readFileSync(destPath, 'utf-8')).toContain('name: CLI Demo');
+    });
+
+    it('should scaffold a valid loadable scenario', () => {
+      const destPath = path.join(tempDir, 'api.yaml');
+      scaffoldTemplate('api-testing', destPath);
+      fixtures.push(destPath);
+
+      const scenario = loadScenario(destPath);
+      expect(scenario.name).toBe('API Testing with cURL');
+      expect(scenario.steps.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('all bundled templates should validate as scenarios', () => {
+    for (const template of listTemplates()) {
+      const destPath = path.join(tempDir, `${template}.yml`);
+      scaffoldTemplate(template, destPath);
+      fixtures.push(destPath);
+      expect(() => loadScenario(destPath), template).not.toThrow();
+    }
   });
 });

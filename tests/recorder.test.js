@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
 import os from 'os';
 
-// Mock playwright and node-pty at the top level
+// Mock playwright at the top level
 vi.mock('playwright', () => ({
   chromium: {
     launch: vi.fn().mockResolvedValue({
@@ -19,15 +19,6 @@ vi.mock('playwright', () => ({
       close: vi.fn().mockResolvedValue(undefined)
     })
   }
-}));
-
-vi.mock('node-pty', () => ({
-  spawn: vi.fn().mockReturnValue({
-    onData: vi.fn(),
-    onExit: vi.fn(),
-    write: vi.fn(),
-    kill: vi.fn()
-  })
 }));
 
 vi.mock('fs/promises', () => ({

@@ -1,0 +1,43 @@
+scenario:
+  name: Local Browser Demo
+  description: Deterministic browser flow against a bundled local HTML page
+  version: 1.0
+
+  steps:
+    - type: navigate
+      url: ../examples/local-browser/index.html
+      caption: "Open bundled local fixture"
+      delay: 800
+
+    - type: fill
+      selector: "#email"
+      text: "demo@example.com"
+      caption: "Fill the email field"
+      delay: 500
+
+    - type: click
+      selector: "#submit"
+      caption: "Submit the form"
+      delay: 500
+
+    - type: assert
+      selector: "#result"
+      caption: "Verify the confirmation appears"
+      delay: 800
+
+    - type: screenshot
+      caption: "Local browser flow complete"
+      delay: 800
+
+  metadata:
+    tags:
+      - browser
+      - local
+      - deterministic
+    difficulty: beginner
+    estimated_time: 15s
+    browser_config:
+      headless: true
+      viewport:
+        width: 960
+        height: 540

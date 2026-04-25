@@ -9,8 +9,8 @@
 **Turn any CLI workflow or browser session into a polished GIF — automatically.**
 
 
-[![npm version](https://img.shields.io/npm/v/repo-shot?color=ff6b6b&style=flat-square)](https://www.npmjs.com/package/repo-shot)
-[![license](https://img.shields.io/github/license/your-org/repo-shot?color=4ecdc4&style=flat-square)](./LICENSE)
+[![npm version](https://img.shields.io/npm/v/readme-repo-shot?color=ff6b6b&style=flat-square)](https://www.npmjs.com/package/readme-repo-shot)
+[![license](https://img.shields.io/npm/l/readme-repo-shot?color=4ecdc4&style=flat-square)](./LICENSE)
 [![node](https://img.shields.io/badge/node-%3E%3D18-brightgreen?style=flat-square)](https://nodejs.org/)
 [![playwright](https://img.shields.io/badge/powered%20by-Playwright-2EAD33?style=flat-square)](https://playwright.dev/)
 
@@ -65,10 +65,20 @@ commands, real browser, real output. No lies, no stale screenshots, no busywork.
 **Prerequisites:** Node.js 18+
 
 ```bash
-npm install -g repo-shot
+npm install -g readme-repo-shot
+repo-shot init
+repo-shot run scenario.yml --open
 ```
 
-Create `scenario.yml`:
+The npm package is `readme-repo-shot`; the installed command is `repo-shot`.
+
+You can also try it without installing globally:
+
+```bash
+npx readme-repo-shot run templates/cli-demo.yml
+```
+
+Or create `scenario.yml` manually:
 
 ```yaml
 scenario:
@@ -125,8 +135,8 @@ UI. Generate GIFs at any resolution.
 <td width="50%">
 
 ### 🤖 GitHub Actions
-Auto-post generated GIFs as PR comments. Every pull request gets a live demo
-attached — zero manual work.
+Generate demo artifacts in CI with a bundled composite action or copy-pasteable
+workflow. Every pull request can rebuild the README GIFs from source.
 
 </td>
 </tr>
@@ -140,9 +150,9 @@ mobile, 1920×1080 full-HD — your call.
 </td>
 <td width="50%">
 
-### 📦 8 Ready Templates
-Terminal, browser, mobile, e-commerce, API testing — copy one and customize. All
-tested against real public demo sites.
+### 📦 9 Ready Templates
+Terminal, browser, mobile, e-commerce, API testing, and a deterministic local
+browser fixture — copy one and customize.
 
 </td>
 </tr>
@@ -274,23 +284,34 @@ Generates two GIFs: `demo.gif` (terminal) and `browser-demo.gif` (browser).
 
 ### Example 7 — GitHub Actions
 
-A ready-made workflow is already included at [`.github/workflows/repo-shot.yml`](.github/workflows/repo-shot.yml). It runs on every PR open/sync and on releases.
+Use the bundled action from your workflow:
+
+```yaml
+steps:
+  - uses: actions/checkout@v4
+  - uses: OWNER/repo-shot@v1
+    with:
+      scenario: scenario.yml
+      output: artifacts
+      format: gif
+      name: readme-demo
+```
+
+A ready-made workflow is also included at [`.github/workflows/repo-shot.yml`](.github/workflows/repo-shot.yml). It runs on pull requests and can be triggered manually.
 
 ```yaml
 # .github/workflows/repo-shot.yml
 name: repo-shot Demonstration
 
 on:
-  push:
-    types: [released]
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 jobs:
   repo-shot-demo:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
       contents: read
 
     steps:
@@ -298,56 +319,39 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: npm
 
-      - run: npm ci
-      - run: npm install --save-dev chalk playwright
+      - run: npm install -g readme-repo-shot
+      - run: npx playwright install chromium --with-deps
 
       # Record terminal demo
-      - run: npx repo-shot action --template templates/cli-demo.yml --output artifacts/cli-demo
-        continue-on-error: true
+      - run: repo-shot run templates/cli-demo.yml --output artifacts/cli-demo
 
       # Record browser demo
-      - run: npx repo-shot action --template templates/web-ui-flow.yml --output artifacts/web-ui-flow --headless
-        continue-on-error: true
+      - run: repo-shot run templates/local-browser.yml --output artifacts/local-browser
 
       # Upload GIFs as workflow artifacts
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: repo-shot-artifacts
           path: artifacts/
-          retention-days: 30
-
-      # Post GIF links as a PR comment
-      - uses: actions/github-script@v7
-        if: github.event_name == 'pull_request'
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '## 📸 repo-shot Demo\nGIFs uploaded — see **Artifacts** tab above.'
-            });
-        continue-on-error: true
+          if-no-files-found: error
 ```
 
 **Key points:**
-- `--template` path is relative to the repo root
-- `--headless` is required for browser steps in CI (no display server)
-- `permissions: pull-requests: write` is needed for the PR comment step
-- `continue-on-error: true` on each step so a failing demo doesn't block the PR
+- Scenario paths are relative to the repo root
+- `npx playwright install chromium --with-deps` installs the browser runtime needed in CI
 - GIFs are available under the **Artifacts** tab of the Actions run for 30 days
 
-To use this in your own repo, copy `.github/workflows/repo-shot.yml` and adjust the `--template` paths to point at your own scenario files.
+To use this in your own repo, copy `.github/workflows/repo-shot.yml` and adjust the scenario paths to point at your own files.
 
 ---
 
 ## Template Library
 
-8 production-ready templates, all tested against real public sites.
+9 production-ready templates, including one browser flow that runs against a bundled local HTML fixture.
 
 ### Terminal Templates
 
@@ -365,6 +369,7 @@ To use this in your own repo, copy `.github/workflows/repo-shot.yml` and adjust 
 | `form-submission.yml` | Login form with validation | the-internet.herokuapp.com |
 | `dashboard-analytics.yml` | Add/remove elements | the-internet.herokuapp.com |
 | `ecommerce-checkout.yml` | Login → cart → checkout | saucedemo.com |
+| `local-browser.yml` | Local form flow | bundled fixture |
 | `mobile-responsive.yml` | Mobile 375×667 shopping flow | saucedemo.com |
 
 Use any template as-is or as a starting point:
@@ -383,6 +388,8 @@ repo-shot run my-shop-demo.yml
 repo-shot run <scenario>        Record and generate GIF/MP4/WebM
   --output <dir>                Output directory       (default: ./artifacts)
   --format <fmt>                Output format: gif, mp4, webm (default: gif)
+  --name <name>                 Base artifact name     (default: demo)
+  --open                        Open the generated artifact
   --theme  <name>               Terminal theme: dark, light, dracula, nord (default: dark)
   --width  <px>                 Width in pixels        (default: 1280)
   --height <px>                 Height in pixels       (default: 720)
@@ -392,9 +399,21 @@ repo-shot preview <scenario>    Quick preview, no optimization
   --format <fmt>                Output format: gif, mp4, webm (default: gif)
   --theme  <name>               Terminal theme: dark, light, dracula, nord (default: dark)
 
+repo-shot init                  Create scenario.yml from cli-demo
+  --template <name>             Template to use        (default: cli-demo)
+  --output <file>               Output scenario file   (default: scenario.yml)
+  --force                       Overwrite existing file
+
+repo-shot doctor                Check Node, Canvas, Playwright, ffmpeg, and output permissions
 repo-shot template list         List built-in templates
 repo-shot template init <name>  Scaffold a new scenario file
+  --force                       Overwrite existing file
+repo-shot template show <name>  Print a built-in template
 ```
+
+GIF export does not require ffmpeg. MP4 and WebM export do.
+
+For editor validation, point your YAML language server at [`scenario.schema.json`](./scenario.schema.json).
 
 **Resolution priority** (highest wins):
 1. `--width` / `--height` CLI flags
@@ -428,6 +447,9 @@ repo-shot template init <name>  Scaffold a new scenario file
   url: https://example.com
   timeout: 30000
 
+- type: navigate      # Relative local files are resolved from the scenario file
+  url: ./examples/local-browser/index.html
+
 - type: click         # Click an element
   selector: "button.primary"
 
@@ -440,6 +462,10 @@ repo-shot template init <name>  Scaffold a new scenario file
 
 - type: screenshot    # Capture the current state
   caption: "Result"
+
+- type: assert        # Wait for an element to exist
+  selector: "#result"
+  caption: "Result rendered"
 ```
 
 ---
@@ -449,14 +475,14 @@ repo-shot template init <name>  Scaffold a new scenario file
 **macOS:**
 ```bash
 xcode-select --install   # Build tools for native modules
-npm install -g repo-shot
+npm install -g readme-repo-shot
 npx playwright install chromium
 ```
 
 **Ubuntu/Debian:**
 ```bash
 apt-get install -y python3 build-essential
-npm install -g repo-shot
+npm install -g readme-repo-shot
 npx playwright install chromium --with-deps
 ```
 
@@ -471,7 +497,7 @@ npx playwright install chromium --with-deps
 - [x] Pure JS GIF generation (no ffmpeg)
 - [x] Configurable resolution
 - [x] GitHub Actions integration
-- [x] 8 production templates
+- [x] 9 production templates
 - [x] MP4 / WebM export
 - [x] Custom terminal themes (dark, light, Dracula, Nord)
 - [ ] Cloud upload (S3, Cloudinary, Vercel Blob)
@@ -484,7 +510,7 @@ npx playwright install chromium --with-deps
 ## Contributing
 
 ```bash
-git clone https://github.com/your-org/repo-shot
+git clone <your-fork-url>
 cd repo-shot
 npm install
 npm test
