@@ -1,3 +1,5 @@
+**Turn any CLI workflow or browser session into a polished GIF — automatically.**
+
 <div align="center">
 
 <img src="./docs/logo.png" alt="repo-shot" width="120" />
