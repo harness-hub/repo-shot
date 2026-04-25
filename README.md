@@ -1,10 +1,8 @@
-**Turn any CLI workflow or browser session into a polished GIF — automatically.**
+# repo-shot
 
 <div align="center">
 
 <img src="./docs/logo.png" alt="repo-shot" width="120" />
-
-# repo-shot
 
 **Stop recording demos by hand. Write YAML once, GIF forever.**
 
