@@ -2,23 +2,45 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
 import os from 'os';
 
+const playwrightMocks = vi.hoisted(() => {
+  const pageMock = {
+    goto: vi.fn().mockResolvedValue(undefined),
+    click: vi.fn().mockResolvedValue(undefined),
+    fill: vi.fn().mockResolvedValue(undefined),
+    type: vi.fn().mockResolvedValue(undefined),
+    waitForTimeout: vi.fn().mockResolvedValue(undefined),
+    waitForSelector: vi.fn().mockResolvedValue(undefined),
+    screenshot: vi.fn().mockResolvedValue(Buffer.from('mock-image')),
+    video: vi.fn().mockReturnValue({ path: vi.fn().mockResolvedValue('/tmp/video.mp4') }),
+  };
+
+  const contextMock = {
+    newPage: vi.fn().mockResolvedValue(pageMock),
+    close: vi.fn().mockResolvedValue(undefined),
+  };
+
+  const browserMock = {
+    newContext: vi.fn().mockResolvedValue(contextMock),
+    close: vi.fn().mockResolvedValue(undefined),
+  };
+
+  return { pageMock, contextMock, browserMock };
+});
+
 // Mock playwright at the top level
 vi.mock('playwright', () => ({
   chromium: {
-    launch: vi.fn().mockResolvedValue({
-      newContext: vi.fn().mockResolvedValue({
-        newPage: vi.fn().mockResolvedValue({
-          goto: vi.fn().mockResolvedValue(undefined),
-          click: vi.fn().mockResolvedValue(undefined),
-          type: vi.fn().mockResolvedValue(undefined),
-          waitForTimeout: vi.fn().mockResolvedValue(undefined),
-          video: vi.fn().mockReturnValue({ path: vi.fn().mockResolvedValue('/tmp/video.mp4') })
-        }),
-        close: vi.fn().mockResolvedValue(undefined)
-      }),
-      close: vi.fn().mockResolvedValue(undefined)
-    })
+    launch: vi.fn().mockResolvedValue(playwrightMocks.browserMock),
   }
+}));
+
+vi.mock('execa', () => ({
+  execa: vi.fn().mockResolvedValue({
+    all: 'test output',
+    stdout: 'test output',
+    stderr: '',
+    exitCode: 0,
+  }),
 }));
 
 vi.mock('fs/promises', () => ({
@@ -30,6 +52,7 @@ vi.mock('fs/promises', () => ({
 }));
 
 import { recordTerminal, recordBrowser, recordScenario } from '../src/recorder.js';
+import { execa } from 'execa';
 
 describe('recorder.js', () => {
   let tempDir;
@@ -59,6 +82,14 @@ describe('recorder.js', () => {
     it('should throw when outPath is empty', async () => {
       await expect(recordTerminal([{ cmd: 'echo test' }], '')).rejects.toThrow('outPath is required');
     });
+
+    it('should honor explicit zero delay for terminal steps', async () => {
+      const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+      await recordTerminal([{ cmd: 'echo test', delay: 0 }], `${tempDir}/output.json`);
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 0);
+      expect(vi.mocked(execa)).toHaveBeenCalledWith('bash', ['-c', 'echo test'], expect.any(Object));
+      setTimeoutSpy.mockRestore();
+    });
   });
 
   describe('recordBrowser', () => {
@@ -76,6 +107,12 @@ describe('recorder.js', () => {
 
     it('should throw when outPath is empty', async () => {
       await expect(recordBrowser([{ action: 'goto', target: 'https://example.com' }], '')).rejects.toThrow('outPath is required');
+    });
+
+    it('should honor explicit zero delay for browser steps', async () => {
+      const result = await recordBrowser([{ action: 'wait', delay: 0 }], `${tempDir}/output.json`);
+      expect(playwrightMocks.pageMock.waitForTimeout).toHaveBeenCalledWith(0);
+      expect(result.frames[0].frameDelay).toBe(0);
     });
   });
 

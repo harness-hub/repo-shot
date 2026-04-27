@@ -122,8 +122,8 @@ export async function runLocal(scenarioPath, opts = {}) {
 
     // Resolve viewport / resolution
     const scenarioViewport = scenario.metadata?.browser_config?.viewport || scenario.browser_config?.viewport;
-    const width  = opts.width  || scenarioViewport?.width  || 1280;
-    const height = opts.height || scenarioViewport?.height || 720;
+    const width  = opts.width ?? scenarioViewport?.width ?? 1280;
+    const height = opts.height ?? scenarioViewport?.height ?? 720;
     const viewport = { width, height };
 
     // Classify steps
@@ -135,14 +135,14 @@ export async function runLocal(scenarioPath, opts = {}) {
       .map(s => Array.isArray(s.commands)
         ? {
             cmd: s.commands.join(' && '),
-            delay: s.delay || 1000,
+            delay: s.delay ?? 1000,
             allowFailure: Boolean(s.allow_failure || s.allowFailure),
             caption: s.caption || '',
             stepIndex: s.index,
           }
         : {
             cmd: s.command,
-            delay: s.delay || 1000,
+            delay: s.delay ?? 1000,
             allowFailure: Boolean(s.allow_failure || s.allowFailure),
             caption: s.caption || '',
             stepIndex: s.index,
@@ -195,9 +195,9 @@ export async function runLocal(scenarioPath, opts = {}) {
       const recorderSteps = browserSteps.map(s => ({
         action: s.type === 'navigate' ? 'goto' : s.type,
         target: s.type === 'navigate' ? resolveNavigationTarget(s.url, scenarioPath) : s.selector || null,
-        text: s.text || s.value || null,
+        text: s.text ?? s.value ?? null,
         caption: s.caption || '',
-        delay: s.delay || 800,
+        delay: s.delay ?? 800,
         timeout: s.timeout,
       }));
 

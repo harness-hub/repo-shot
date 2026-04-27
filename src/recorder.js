@@ -29,7 +29,7 @@ export async function recordTerminal(steps, outPath) {
     
     // Execute each command and capture output
     for (const step of steps) {
-      const delay = step.delay || 500;
+      const delay = step.delay ?? 500;
       
       // Wait before executing command
       await new Promise((res) => setTimeout(res, delay));
@@ -131,18 +131,18 @@ export async function recordBrowser(steps, outPath, opts = {}) {
     const page = await context.newPage();
 
     for (const step of steps) {
-      const delay = step.delay || 800;
+      const delay = step.delay ?? 800;
 
       if (step.action === 'goto') {
-        await page.goto(step.target, { waitUntil: 'networkidle', timeout: step.timeout || 60000 });
+        await page.goto(step.target, { waitUntil: 'networkidle', timeout: step.timeout ?? 60000 });
       } else if (step.action === 'click') {
-        await page.click(step.target, { timeout: step.timeout || 60000 });
+        await page.click(step.target, { timeout: step.timeout ?? 60000 });
       } else if (step.action === 'fill' || step.action === 'type') {
-        await page.fill(step.target, step.text || '', { timeout: step.timeout || 60000 });
+        await page.fill(step.target, step.text ?? '', { timeout: step.timeout ?? 60000 });
       } else if (step.action === 'wait') {
         await page.waitForTimeout(delay);
       } else if (step.action === 'assert') {
-        await page.waitForSelector(step.target, { timeout: step.timeout || 60000 });
+        await page.waitForSelector(step.target, { timeout: step.timeout ?? 60000 });
       } else if (step.action !== 'screenshot') {
         throw new Error(`Unsupported browser action: ${step.action}`);
       }
@@ -155,7 +155,7 @@ export async function recordBrowser(steps, outPath, opts = {}) {
         screenshot: screenshotBuf.toString('base64'),
         action: step.action,
         caption: step.caption || '',
-        frameDelay: step.frameDelay || delay,
+        frameDelay: step.frameDelay ?? delay,
         type: 'browser',
       });
     }

@@ -198,7 +198,7 @@ async function createGifFromBrowserRecording(recording, width, height) {
     ctx.drawImage(img, 0, 0, width, height);
     drawCaption(ctx, frame.caption, width, height);
 
-    encoder.setDelay(frame.frameDelay || 800);
+    encoder.setDelay(frame.frameDelay ?? 800);
     encoder.addFrame(ctx.getImageData(0, 0, width, height).data);
   }
 
@@ -599,7 +599,7 @@ export async function exportVideo(inPath, outPath, opts = {}) {
         const img = await loadImage(imgBuf);
         ctx.drawImage(img, 0, 0, width, height);
         drawCaption(ctx, frame.caption, width, height);
-        await writeFrame(frame.frameDelay || 800);
+        await writeFrame(frame.frameDelay ?? 800);
       }
       await writeFrame(2500);
     } else {
